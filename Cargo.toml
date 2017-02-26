@@ -1,0 +1,6 @@
+[package]
+name = "sorted-collections"
+version = "0.1.0"
+authors = ["Galen O'Sullivan <galenosullivan@gmail.com>"]
+
+[dependencies]
