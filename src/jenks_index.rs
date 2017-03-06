@@ -30,13 +30,13 @@
 ///
 /// In either case, continue until we're at a leaf node, then index into that array by what's left.
 
-struct JenksIndex {
+pub struct JenksIndex {
     index: Vec<usize>,
 }
 
-struct JenksIterator {
+pub struct JenksIterator<'a> {
     pos: usize,
-    index: &Vec<usize>,
+    index: &'a Vec<usize>,
 }
 
 impl JenksIndex {
@@ -65,7 +65,7 @@ impl JenksIndex {
 /// assert_eq!(from_flattened,from_lists);
 ///
 ///
-    fn from_value_lists(value_lists: &Vec<Vec<usize>>) -> JenksIndex {
+    pub fn from_value_lists<T>(value_lists: &Vec<Vec<T>>) -> JenksIndex {
         let lengths = value_lists.iter().map(|l| l.len()).collect();
         // triangular number... 1+2+3+4+...+n = n*n/2
         //let mut index = Vec::with_capacity(lengths.len().pow(2)/2);

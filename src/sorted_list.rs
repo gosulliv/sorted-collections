@@ -2,15 +2,6 @@
 //!
 //! Copied from Grant Jenks' sorted containers.
 
-//impl SortedList<T> {
-//    pub fn newSortedList(Vec<T>) -> SortedList<T> {
-//        SortedList<T> {
-//            size: v.len(),
-//            ValueLists: Vec<Vec<T>>,
-//        }
-//    }
-//}
-
 use bisect::*;
 use jenks_index::JenksIndex;
 use std::default::Default;
@@ -19,53 +10,41 @@ use std::default::Default;
 /// If the list size shrinks below the load factor, we join two lists.
 const DEFAULT_LOAD_FACTOR: usize = 1000;
 
-// todo? make this a: Iterable or something.
-
-    //match a.iter().partition::<Vec<usize>,_>(|x| {even = !even; even})
-    //{
-        //(even, odd) => even.into_iter()
-            //.zip(odd.into_iter())
-            //.map(|tuple| match tuple {
-                //(l,r) => l + r
-            //})
-            //.collect()
-    //}
-
-// todo: make a better derivation of PartialEq, Eq.
+// todo: make not copy.
 #[derive(Debug)]
-struct SortedList<T> {
+struct SortedList<T: PartialOrd + Copy> {
     total_elements: usize,
     value_lists: Vec<Vec<T>>,
-    maxes: Vec<usize>,
+    maxes: Vec<T>,
     index: JenksIndex,
     load_factor: usize,
     twice_load_factor: usize, // cached for speed I guess?
 }
 
-impl<T: PartialOrd> SortedList<T> {
+impl<T: PartialOrd + Copy> SortedList<T> {
     fn update_jenks_index(&mut self) {
-        self.jenks_index = self.JenksIndex.from_value_lists(&value_lists);
+        self.index = JenksIndex::from_value_lists(&self.value_lists);
     }
 
     pub fn contains(&self, val: T) -> bool {
-        let pos = bisect_left(self.maxes, val);
-        let idx = bisect_left(self.lists[pos], val);
-        self.lists[pos][idx] == val
+        let pos = bisect_left(&self.maxes, &val);
+        let idx = bisect_left(&self.value_lists[pos], &val);
+        self.value_lists[pos][idx] == val
     }
 
     pub fn add(&mut self, val: T) {
         if self.maxes.is_empty() {
-            self.lists.push(vec![val]);
+            self.value_lists.push(vec![val]);
             self.maxes.push(val);
         } else {
-            let mut pos = bisect_right(self.maxes, val);
+            let mut pos = bisect_right(&self.maxes, &val);
             
             if pos == self.maxes.len() {
                 pos -= 1;
-                self.lists[pos].append(val);
+                self.value_lists[pos].push(val);
                 self.maxes[pos] = val;
             } else {
-                insort_left(lists[pos], val);
+                insort_left(self.value_lists[pos], val);
             }
             self.expand(pos);
         }
@@ -77,27 +56,21 @@ impl<T: PartialOrd> SortedList<T> {
 /// level. This requires incrementing the nodes in a traversal from the
 /// leaf node to the root. For an example traversal see self._loc.
     fn expand(&mut self, pos: usize) {
-        if self.lists[pos].len() > self.twice_load_factor {
+        if self.value_lists[pos].len() > self.twice_load_factor {
             self.split_list(pos);
-        } else if !self.index.is_empty() {
-            let child = self.offset + pos;
- 
-            // TODO: get jenks index working.
-     //else:
-     //    if _index:
-     //        child = self._offset + pos
-     //        while child:
-     //        _index[child] += 1
-     //        child = (child - 1) >> 1
-     //        child = (child - 1) / 2
+            // TODO: update index better.
+            self.update_jenks_index();
+        } else {
+            JenksIndex::increment_above_leaf(pos);
         }
     }
+
     /// Assumes the list is not empty.
     fn split_list(&mut self, pos: usize) {
         let mut new_list = self.value_lists[pos].split_off(self.load_factor);
-        self.maxes[pos] = self.value_lists[pos].last().unwrap();
-        self.lists.insert(pos + 1, new_list);
-        self.maxes.insert(pos + 1, new_list.last().unwrap());
+        self.maxes[pos] = *self.value_lists[pos].last().unwrap();
+        self.value_lists.insert(pos + 1, new_list);
+        self.maxes.insert(pos + 1, *new_list.last().unwrap());
     }
         
 
@@ -111,11 +84,21 @@ impl<T: PartialOrd> SortedList<T> {
 //    type Item = T;
 //    fn into_iter(self) -> Self::IntoIter;
 //}
-impl<'a, T> From<&'a [T]> for SortedList<T> where T: Clone {
-    fn from(s: &'a [T]) -> SortedList<T> {
-        unimplemented!()
-    }
-}
+//impl<'a, T> From<&'a [T]> for SortedList<T> where T: Clone {
+//    fn from(s: &'a [T]) -> SortedList<T> {
+//        let starting_size = DEFAULT_LOAD_FACTOR + DEFAULT_LOAD_FACTOR/2;
+//        let value_lists = s.sorted().iter().chunks(starting_size).map(|x| x.collect()).collect();
+//
+//        SortedList{
+//            value_lists: value_lists,
+//            total_elements: s.len(),
+//            maxes: value_lists.map(|x| x.last().unwrap()),
+//            index: JenksIndex::from_value_lists(value_lists),
+//            load_factor: DEFAULT_LOAD_FACTOR,
+//            twice_load_factor: DEFAULT_LOAD_FACTOR*2, 
+//        }
+//    }
+//}
 
 // todo: Index<Range<usize>>
 //impl<T> Index<usize> for SortedList<T> {
@@ -126,7 +109,7 @@ impl<'a, T> From<&'a [T]> for SortedList<T> where T: Clone {
 //    }
 //}
 
-impl<T> Default for SortedList<T> {
+impl<T: PartialOrd + Copy> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
             total_elements: 0,

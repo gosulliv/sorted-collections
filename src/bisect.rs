@@ -11,7 +11,7 @@
 /// assert_eq!(bisect_left(vec![1,2,4,8],2),2);
 /// ```
 ///
-pub fn bisect_left<T: PartialOrd>(x: &T, a: &Vec<T>) -> usize {
+pub fn bisect_left<T: PartialOrd>(a: &Vec<T>, x: &T) -> usize {
     // naive implementation.
     for i in 0..a.len() {
         if a[i] >= *x {
@@ -32,7 +32,7 @@ pub fn bisect_left<T: PartialOrd>(x: &T, a: &Vec<T>) -> usize {
 /// assert_eq!(bisect_right(vec![1,2,4,8],2),3);
 /// ```
 ///
-pub fn bisect_right<T: PartialOrd>(x: &T, a: &Vec<T>) -> usize {
+pub fn bisect_right<T: PartialOrd>(a: &Vec<T>, x: &T) -> usize {
     for i in (0..a.len()).rev() {
         if a[i] <= *x {
             return i + 1
@@ -60,6 +60,6 @@ pub fn bisect_right<T: PartialOrd>(x: &T, a: &Vec<T>) -> usize {
 /// assert_eq!(insort_left(vec![1,4,5],3),vec![1,3,4,5]);
 /// ```
 pub fn insort_left<T: PartialOrd>(a: &mut Vec<T>, x: T) {
-    a.insert(bisect_left(&x, &a), x);
+    a.insert(bisect_left(&a, &x), x);
 }
 
