@@ -30,9 +30,16 @@
 ///
 /// In either case, continue until we're at a leaf node, then index into that array by what's left.
 
+#[derive(Debug,PartialEq,Eq)]
 pub struct JenksIndex {
-    index: Vec<usize>,
+    pub index: Vec<usize>,
 }
+
+//impl From<Vec<usize>> for JenksIndex {
+    //fn from(v: Vec<usize>) -> Self {
+        //JenksIndex{index: v}
+    //}
+//}
 
 pub struct JenksIterator<'a> {
     pos: usize,
@@ -95,7 +102,7 @@ impl JenksIndex {
     /// let several_index = JenksIndex{vec![3,1,2]};
     /// assert_eq!(several_index.left_child(0), 1);
     /// ```
-    fn left_child(&self, pos: usize) -> Option<usize> {
+    pub fn left_child(&self, pos: usize) -> Option<usize> {
         //  [ 0,
         //  1, 2,
         //3,4,5,6, ]
@@ -116,7 +123,7 @@ impl JenksIndex {
     /// assert_eq!(several_index.right_child(0), 2);
     /// ```
     /// 
-    fn right_child(&self, pos: usize) -> Option<usize> {
+    pub fn right_child(&self, pos: usize) -> Option<usize> {
         let rchild = pos * 2 + 2;
         if rchild > self.index.len() {
             None
@@ -124,11 +131,58 @@ impl JenksIndex {
             Some(rchild)
         }
     }
+
+    /// ```
+    /// let mut j = JenksIndex{vec![]};
+    /// assert_eq!(j.parent(0), None);
+    /// assert_eq!(j.parent(1), None);
+    /// assert_eq!(j.parent(2), None);
+    /// assert_eq!(j.parent(3), None);
+    /// j.index.push(20);
+    /// assert_eq!(j.parent(0), None);
+    /// assert_eq!(j.parent(1), None);
+    /// assert_eq!(j.parent(2), None);
+    /// j.index.push(40);
+    /// assert_eq!(j.parent(0), None);
+    /// assert_eq!(j.parent(1), Some(0));
+    /// assert_eq!(j.parent(2), None);
+    /// j.index.push(1000);
+    /// assert_eq!(j.parent(0), None);
+    /// assert_eq!(j.parent(1), Some(0));
+    /// assert_eq!(j.parent(2), Some(0));
+    /// assert_eq!(j.parent(3), None);
+    /// j.index.push(1);
+    /// assert_eq!(j.parent(0), None);
+    /// assert_eq!(j.parent(1), Some(0));
+    /// assert_eq!(j.parent(2), Some(0));
+    /// assert_eq!(j.parent(3), Some(1));
+    /// j.index.push(34);
+    /// j.index.push(55);
+    /// assert_eq!(j.parent(0), None);
+    /// assert_eq!(j.parent(1), Some(0));
+    /// assert_eq!(j.parent(2), Some(0));
+    /// assert_eq!(j.parent(3), Some(1));
+    /// assert_eq!(j.parent(4), Some(1));
+    /// assert_eq!(j.parent(5), Some(2));
+    /// assert_eq!(j.parent(6), Some(2));
+    /// assert_eq!(j.parent(7), None);
+    pub fn parent(&self, pos: usize) -> Option<usize> {
+        if pos == 0 || pos > self.index.len() {
+            None
+        } else {
+            Some((pos - 1) / 2)
+        }
+    }
+
+    pub fn increment_above_leaf(&mut self, pos: usize) {
+        self.index[pos] += 1;
+
+    }
 }
 
 fn pair_sum(a: &Vec<usize>) -> Vec<usize> {
     let mut even = false; //false so we return the first
-    a.chunks(2).map(|pair| pair.fold(0,|x,y| x+y)).collect()
+    a.chunks(2).map(|pair| pair.iter().fold(0,|x,y| x+y)).collect()
 }
 
 #[cfg(test)]

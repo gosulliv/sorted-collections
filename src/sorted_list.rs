@@ -44,7 +44,7 @@ impl<T: PartialOrd + Copy> SortedList<T> {
                 self.value_lists[pos].push(val);
                 self.maxes[pos] = val;
             } else {
-                insort_left(self.value_lists[pos], val);
+                insort_left(&mut self.value_lists[pos], val);
             }
             self.expand(pos);
         }
@@ -61,7 +61,7 @@ impl<T: PartialOrd + Copy> SortedList<T> {
             // TODO: update index better.
             self.update_jenks_index();
         } else {
-            JenksIndex::increment_above_leaf(pos);
+            self.index.increment_above_leaf(pos);
         }
     }
 
@@ -69,8 +69,8 @@ impl<T: PartialOrd + Copy> SortedList<T> {
     fn split_list(&mut self, pos: usize) {
         let mut new_list = self.value_lists[pos].split_off(self.load_factor);
         self.maxes[pos] = *self.value_lists[pos].last().unwrap();
+        self.maxes.insert(pos + 1, new_list.last().unwrap().clone());
         self.value_lists.insert(pos + 1, new_list);
-        self.maxes.insert(pos + 1, *new_list.last().unwrap());
     }
         
 
@@ -113,9 +113,9 @@ impl<T: PartialOrd + Copy> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
             total_elements: 0,
-            value_lists: vec!(Vec::default()),
-            maxes: Vec::default(),
-            index: Vec::default(),
+            value_lists: vec!(vec![]),
+            maxes: vec![],
+            index: JenksIndex{index: vec![]},
             load_factor: DEFAULT_LOAD_FACTOR,
             twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
         }
@@ -139,19 +139,19 @@ mod tests {
     #[test]
     pub fn test_calculate_jenks_index() {
         let list: SortedList<u8> = SortedList::default();
-        let index = JenksIndex::fromValueLists(list.value_lists);
-        assert_eq!(index, vec![]);
+        let index = JenksIndex::from_value_lists(&list.value_lists);
+        assert_eq!(index, JenksIndex{index: vec![]});
 
         let list: SortedList<u64> = SortedList{
             total_elements: 5,
             value_lists: vec![vec![1,2,3,4,5]],
             maxes: vec![5],
-            index: vec![vec![5]],
+            index: JenksIndex{index: vec![5]},
             load_factor: DEFAULT_LOAD_FACTOR,
             twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
         };
-        let index = JenksIndex::fromValueLists(list.value_lists);
-        assert_eq!(vec![5], index);
+        let index = JenksIndex::from_value_lists(&list.value_lists);
+        assert_eq!(JenksIndex{index: vec![5]}, index);
     }
 
 }

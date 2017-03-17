@@ -60,6 +60,7 @@ pub fn bisect_right<T: PartialOrd>(a: &Vec<T>, x: &T) -> usize {
 /// assert_eq!(insort_left(vec![1,4,5],3),vec![1,3,4,5]);
 /// ```
 pub fn insort_left<T: PartialOrd>(a: &mut Vec<T>, x: T) {
-    a.insert(bisect_left(&a, &x), x);
+    let foo = bisect_left(a, &x);
+    a.insert(foo, x);
 }
 
