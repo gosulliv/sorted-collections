@@ -5,6 +5,7 @@
 use bisect::*;
 use jenks_index::JenksIndex;
 use std::default::Default;
+use std::iter::FromIterator;
 
 /// if the list size grows greater than the load factor, we split it.
 /// If the list size shrinks below the load factor, we join two lists.
@@ -21,6 +22,11 @@ struct SortedList<T: PartialOrd + Copy> {
     twice_load_factor: usize, // cached for speed I guess?
 }
 
+/// The sorted list you've all been waiting for.
+/// Hopefully it has really good performance.
+///
+/// Example usage:
+///
 impl<T: PartialOrd + Copy> SortedList<T> {
     fn update_jenks_index(&mut self) {
         self.index = JenksIndex::from_value_lists(&self.value_lists);
@@ -81,18 +87,18 @@ impl<T: PartialOrd + Copy> SortedList<T> {
 }
 
 pub struct SortedListIter<T> {
-    listListIter: ::std::vec::IntoIter<Vec<T>>,
-    currListIter: ::std::vec::IntoIter<T>,
+    list_list_iter: ::std::vec::IntoIter<Vec<T>>,
+    curr_list_iter: ::std::vec::IntoIter<T>,
 }
 impl<'a, T: PartialOrd + Copy> Iterator for SortedListIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.currListIter.next() {
+        match self.curr_list_iter.next() {
             Some(x) => Some(x),
             None => {
-                match self.listListIter.next() {
+                match self.list_list_iter.next() {
                     Some(x) => {
-                        self.currListIter = x.into_iter();
+                        self.curr_list_iter = x.into_iter();
                         self.next()
                     }
                     None => None,
@@ -108,11 +114,28 @@ impl<'a, T: PartialOrd + Copy> IntoIterator for SortedList<T> {
 
     fn into_iter(self) -> SortedListIter<T> {
         SortedListIter {
-            listListIter: self.value_lists.into_iter(),
-            currListIter: vec![].into_iter(),
+            list_list_iter: self.value_lists.into_iter(),
+            curr_list_iter: vec![].into_iter(),
         }
     }
 }
+
+/// Does a probably O(n^2) collection from an iterator -- but it's an iterator, not a
+/// collection we're sorting, so what do you expect?
+///
+/// Actually may not be that bad based on the performance analysis that's todo
+impl <T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
+    fn from_iter<F>(iter: F) -> Self
+    where F: IntoIterator<Item=T> {
+        let mut list = Self::default();
+        let mut iter = iter.into_iter();
+        while let Some(x) = iter.next() {
+            list.add(x);
+        }
+        list
+    }
+}
+
 //impl<'a, T> From<&'a [T]> for SortedList<T> where T: Clone {
 //    fn from(s: &'a [T]) -> SortedList<T> {
 //        let starting_size = DEFAULT_LOAD_FACTOR + DEFAULT_LOAD_FACTOR/2;
@@ -169,7 +192,7 @@ mod tests {
     pub fn test_calculate_jenks_index() {
         let list: SortedList<u8> = SortedList::default();
         let index = JenksIndex::from_value_lists(&list.value_lists);
-        assert_eq!(index, JenksIndex { index: vec![] });
+        assert_eq!(index, JenksIndex { index: vec![0] });
 
         let list: SortedList<u64> = SortedList {
             total_elements: 5,
