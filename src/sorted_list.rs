@@ -124,9 +124,10 @@ impl<'a, T: PartialOrd + Copy> IntoIterator for SortedList<T> {
 /// collection we're sorting, so what do you expect?
 ///
 /// Actually may not be that bad based on the performance analysis that's todo
-impl <T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
+impl<T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
     fn from_iter<F>(iter: F) -> Self
-    where F: IntoIterator<Item=T> {
+        where F: IntoIterator<Item = T>
+    {
         let mut list = Self::default();
         let mut iter = iter.into_iter();
         while let Some(x) = iter.next() {
