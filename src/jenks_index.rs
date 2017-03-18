@@ -29,16 +29,15 @@
 /// and go to the right.
 ///
 /// In either case, continue until we're at a leaf node, then index into that array by what's left.
-
 #[derive(Debug,PartialEq,Eq)]
 pub struct JenksIndex {
     pub index: Vec<usize>,
 }
 
 //impl From<Vec<usize>> for JenksIndex {
-    //fn from(v: Vec<usize>) -> Self {
-        //JenksIndex{index: v}
-    //}
+//fn from(v: Vec<usize>) -> Self {
+//JenksIndex{index: v}
+//}
 //}
 
 pub struct JenksIterator<'a> {
@@ -47,31 +46,31 @@ pub struct JenksIterator<'a> {
 }
 
 impl JenksIndex {
-/// Calculate the "Jenks Index" of the set, which is basically a heap-like lookup tree.
-///
-/// The algorithm works something like this. Given the lists:
-/// _lists = [
-///  [0,1,2,3],
-///  [4,5,6],
-///  [7,8,9,10,11,12],
-///  [13,14,15,16,17]]
-///  _maxes = [3,6,12,17]
-///
-/// lengths = [ 4,3,6,5 ]
-/// pair_wise_sums1 = [ 7,11 ]
-/// pair_wise_sums2  = [ 18 ]
-/// _index = [ 18, 7, 11, 4, 3, 6 ,5 ]
-/// _offset = 3
-///
-/// ```
-/// let from_lists = JenksIndex::from_value_lists(
-///   vec![vec![1,2,3],vec![4,18],vec![37,38,4]]);
-/// let from_flattened = JenksIndex{vec![vec![8],vec![5,3],vec![3,2,3]].flatten()};
-/// let flattened = [8,5,3,3,2,3];
-/// assert_eq!(flattened,from_lists);
-/// assert_eq!(from_flattened,from_lists);
-///
-///
+    /// Calculate the "Jenks Index" of the set, which is basically a heap-like lookup tree.
+    ///
+    /// The algorithm works something like this. Given the lists:
+    /// _lists = [
+    ///  [0,1,2,3],
+    ///  [4,5,6],
+    ///  [7,8,9,10,11,12],
+    ///  [13,14,15,16,17]]
+    ///  _maxes = [3,6,12,17]
+    ///
+    /// lengths = [ 4,3,6,5 ]
+    /// pair_wise_sums1 = [ 7,11 ]
+    /// pair_wise_sums2  = [ 18 ]
+    /// _index = [ 18, 7, 11, 4, 3, 6 ,5 ]
+    /// _offset = 3
+    ///
+    /// ```
+    /// let from_lists = JenksIndex::from_value_lists(
+    ///   vec![vec![1,2,3],vec![4,18],vec![37,38,4]]);
+    /// let from_flattened = JenksIndex{vec![vec![8],vec![5,3],vec![3,2,3]].flatten()};
+    /// let flattened = [8,5,3,3,2,3];
+    /// assert_eq!(flattened,from_lists);
+    /// assert_eq!(from_flattened,from_lists);
+    ///
+    ///
     pub fn from_value_lists<T>(value_lists: &Vec<Vec<T>>) -> JenksIndex {
         let lengths = value_lists.iter().map(|l| l.len()).collect();
         // triangular number... 1+2+3+4+...+n = n*n/2
@@ -83,11 +82,11 @@ impl JenksIndex {
             steps.push(next);
         }
         steps.reverse();
-        JenksIndex{
+        JenksIndex {
             index: steps.iter()
             .flat_map(|x| x.iter())
             .map(|x| x.clone()) // to satisfy the FromIterator trait. sigh.
-            .collect()
+            .collect(),
         }
     }
 
@@ -122,7 +121,7 @@ impl JenksIndex {
     /// let several_index = JenksIndex{vec![3,1,2]};
     /// assert_eq!(several_index.right_child(0), 2);
     /// ```
-    /// 
+    ///
     pub fn right_child(&self, pos: usize) -> Option<usize> {
         let rchild = pos * 2 + 2;
         if rchild > self.index.len() {
@@ -182,13 +181,13 @@ impl JenksIndex {
 
 fn pair_sum(a: &Vec<usize>) -> Vec<usize> {
     let mut even = false; //false so we return the first
-    a.chunks(2).map(|pair| pair.iter().fold(0,|x,y| x+y)).collect()
+    a.chunks(2).map(|pair| pair.iter().fold(0, |x, y| x + y)).collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     pub fn test_pair_sum() {
         let empty: Vec<usize> = Vec::default();
@@ -200,10 +199,10 @@ mod tests {
         let single_2: Vec<usize> = vec![1010];
         assert_eq!(single, pair_sum(&single));
 
-        let a: Vec<usize> = vec![1,2,3,4];
-        assert_eq!(vec![3,7], pair_sum(&a)); 
+        let a: Vec<usize> = vec![1, 2, 3, 4];
+        assert_eq!(vec![3, 7], pair_sum(&a));
 
-        let b: Vec<usize> = vec![1000,220,2];
-        assert_eq!(vec![1220,2], pair_sum(&b)); 
+        let b: Vec<usize> = vec![1000, 220, 2];
+        assert_eq!(vec![1220, 2], pair_sum(&b));
     }
 }

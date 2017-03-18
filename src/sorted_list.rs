@@ -38,7 +38,7 @@ impl<T: PartialOrd + Copy> SortedList<T> {
             self.maxes.push(val);
         } else {
             let mut pos = bisect_right(&self.maxes, &val);
-            
+
             if pos == self.maxes.len() {
                 pos -= 1;
                 self.value_lists[pos].push(val);
@@ -49,12 +49,12 @@ impl<T: PartialOrd + Copy> SortedList<T> {
             self.expand(pos);
         }
         self.total_elements += 1;
-   }
+    }
 
-/// Splits sublists that are more than double the load level.
-/// Updates the index when the sublist length is less than double the load
-/// level. This requires incrementing the nodes in a traversal from the
-/// leaf node to the root. For an example traversal see self._loc.
+    /// Splits sublists that are more than double the load level.
+    /// Updates the index when the sublist length is less than double the load
+    /// level. This requires incrementing the nodes in a traversal from the
+    /// leaf node to the root. For an example traversal see self._loc.
     fn expand(&mut self, pos: usize) {
         if self.value_lists[pos].len() > self.twice_load_factor {
             self.split_list(pos);
@@ -72,11 +72,11 @@ impl<T: PartialOrd + Copy> SortedList<T> {
         self.maxes.insert(pos + 1, new_list.last().unwrap().clone());
         self.value_lists.insert(pos + 1, new_list);
     }
-        
+
 
     //fn jenks_lookup(self, idx: usize) {
-       //let mut idx = idx;
-       //while (idx 
+    //let mut idx = idx;
+    //while (idx
     //}
 }
 
@@ -84,15 +84,16 @@ pub struct SortedListIter<T> {
     listListIter: ::std::vec::IntoIter<Vec<T>>,
     currListIter: ::std::vec::IntoIter<T>,
 }
-impl<'a, T: PartialOrd+ Copy> Iterator for SortedListIter<T> {
+impl<'a, T: PartialOrd + Copy> Iterator for SortedListIter<T> {
     type Item = T;
-    fn next (&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<Self::Item> {
         match self.currListIter.next() {
             Some(x) => Some(x),
             None => {
                 match self.listListIter.next() {
                     Some(x) => {
-                        self.currListIter = x.into_iter(); self.next()
+                        self.currListIter = x.into_iter();
+                        self.next()
                     }
                     None => None,
                 }
@@ -101,12 +102,12 @@ impl<'a, T: PartialOrd+ Copy> Iterator for SortedListIter<T> {
     }
 }
 
-impl<'a, T: PartialOrd+Copy> IntoIterator for SortedList<T> {
+impl<'a, T: PartialOrd + Copy> IntoIterator for SortedList<T> {
     type Item = T;
     type IntoIter = SortedListIter<T>;
 
     fn into_iter(self) -> SortedListIter<T> {
-        SortedListIter{
+        SortedListIter {
             listListIter: self.value_lists.into_iter(),
             currListIter: vec![].into_iter(),
         }
@@ -123,7 +124,7 @@ impl<'a, T: PartialOrd+Copy> IntoIterator for SortedList<T> {
 //            maxes: value_lists.map(|x| x.last().unwrap()),
 //            index: JenksIndex::from_value_lists(value_lists),
 //            load_factor: DEFAULT_LOAD_FACTOR,
-//            twice_load_factor: DEFAULT_LOAD_FACTOR*2, 
+//            twice_load_factor: DEFAULT_LOAD_FACTOR*2,
 //        }
 //    }
 //}
@@ -132,7 +133,7 @@ impl<'a, T: PartialOrd+Copy> IntoIterator for SortedList<T> {
 //impl<T> Index<usize> for SortedList<T> {
 //    fn index(&self, index: usize) -> &T {
 //        let mut currindex = index;
-//        let mut 
+//        let mut
 //        self.index[0]
 //    }
 //}
@@ -141,9 +142,9 @@ impl<T: PartialOrd + Copy> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
             total_elements: 0,
-            value_lists: vec!(vec![]),
+            value_lists: vec![vec![]],
             maxes: vec![],
-            index: JenksIndex{index: vec![]},
+            index: JenksIndex { index: vec![] },
             load_factor: DEFAULT_LOAD_FACTOR,
             twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
         }
@@ -168,19 +169,18 @@ mod tests {
     pub fn test_calculate_jenks_index() {
         let list: SortedList<u8> = SortedList::default();
         let index = JenksIndex::from_value_lists(&list.value_lists);
-        assert_eq!(index, JenksIndex{index: vec![]});
+        assert_eq!(index, JenksIndex { index: vec![] });
 
-        let list: SortedList<u64> = SortedList{
+        let list: SortedList<u64> = SortedList {
             total_elements: 5,
-            value_lists: vec![vec![1,2,3,4,5]],
+            value_lists: vec![vec![1, 2, 3, 4, 5]],
             maxes: vec![5],
-            index: JenksIndex{index: vec![5]},
+            index: JenksIndex { index: vec![5] },
             load_factor: DEFAULT_LOAD_FACTOR,
             twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
         };
         let index = JenksIndex::from_value_lists(&list.value_lists);
-        assert_eq!(JenksIndex{index: vec![5]}, index);
+        assert_eq!(JenksIndex { index: vec![5] }, index);
     }
 
 }
-
