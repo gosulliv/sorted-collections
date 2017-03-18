@@ -80,10 +80,38 @@ impl<T: PartialOrd + Copy> SortedList<T> {
     //}
 }
 
-//impl IntoIterator for SortedList<T> {
-//    type Item = T;
-//    fn into_iter(self) -> Self::IntoIter;
-//}
+pub struct SortedListIter<T> {
+    listListIter: ::std::vec::IntoIter<Vec<T>>,
+    currListIter: ::std::vec::IntoIter<T>,
+}
+impl<'a, T: PartialOrd+ Copy> Iterator for SortedListIter<T> {
+    type Item = T;
+    fn next (&mut self) -> Option<Self::Item> {
+        match self.currListIter.next() {
+            Some(x) => Some(x),
+            None => {
+                match self.listListIter.next() {
+                    Some(x) => {
+                        self.currListIter = x.into_iter(); self.next()
+                    }
+                    None => None,
+                }
+            }
+        }
+    }
+}
+
+impl<'a, T: PartialOrd+Copy> IntoIterator for SortedList<T> {
+    type Item = T;
+    type IntoIter = SortedListIter<T>;
+
+    fn into_iter(self) -> SortedListIter<T> {
+        SortedListIter{
+            listListIter: self.value_lists.into_iter(),
+            currListIter: vec![].into_iter(),
+        }
+    }
+}
 //impl<'a, T> From<&'a [T]> for SortedList<T> where T: Clone {
 //    fn from(s: &'a [T]) -> SortedList<T> {
 //        let starting_size = DEFAULT_LOAD_FACTOR + DEFAULT_LOAD_FACTOR/2;
