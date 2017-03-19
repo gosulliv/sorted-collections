@@ -24,9 +24,6 @@ struct SortedList<T: PartialOrd + Copy> {
 
 /// The sorted list you've all been waiting for.
 /// Hopefully it has really good performance.
-///
-/// Example usage:
-///
 impl<T: PartialOrd + Copy> SortedList<T> {
     fn update_jenks_index(&mut self) {
         self.index = JenksIndex::from_value_lists(&self.value_lists);
@@ -39,22 +36,28 @@ impl<T: PartialOrd + Copy> SortedList<T> {
     }
 
     pub fn add(&mut self, val: T) {
+        let mut which_list;
         if self.maxes.is_empty() {
-            self.value_lists.push(vec![val]);
+            assert!(!self.value_lists.is_empty());
+            self.value_lists[0].push(val);
             self.maxes.push(val);
+            which_list = 0;
         } else {
-            let mut pos = bisect_right(&self.maxes, &val);
+            // TODO: I think this results in an extra list if we keep inserting the same value. But
+            // bisect_left would do the same? No, it would put it in the list with its equal. But
+            // we should push to the right if we can...... think about this later.
+            which_list = bisect_left(&self.maxes, &val);
 
-            if pos == self.maxes.len() {
-                pos -= 1;
-                self.value_lists[pos].push(val);
-                self.maxes[pos] = val;
+            if which_list == self.maxes.len() {
+                which_list -= 1;
+                self.value_lists[which_list].push(val);
+                self.maxes[which_list] = val;
             } else {
-                insort_left(&mut self.value_lists[pos], val);
+                insort_left(&mut self.value_lists[which_list], val);
             }
-            self.expand(pos);
         }
         self.total_elements += 1;
+        self.expand(which_list);
     }
 
     /// Splits sublists that are more than double the load level.
@@ -73,7 +76,7 @@ impl<T: PartialOrd + Copy> SortedList<T> {
 
     /// Assumes the list is not empty.
     fn split_list(&mut self, pos: usize) {
-        let mut new_list = self.value_lists[pos].split_off(self.load_factor);
+        let new_list = self.value_lists[pos].split_off(self.load_factor);
         self.maxes[pos] = *self.value_lists[pos].last().unwrap();
         self.maxes.insert(pos + 1, new_list.last().unwrap().clone());
         self.value_lists.insert(pos + 1, new_list);
@@ -175,7 +178,6 @@ impl<T: PartialOrd + Copy> Default for SortedList<T> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,4 +209,13 @@ mod tests {
         assert_eq!(JenksIndex { index: vec![5] }, index);
     }
 
+    #[test]
+    pub fn basic_list_test() {
+        let mut list = SortedList::default();
+        list.add(3);
+        list.add(13);
+        assert!(list.contains(3));
+        assert!(list.contains(13));
+        assert!(!list.contains(1));
+    }
 }

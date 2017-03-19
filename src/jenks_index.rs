@@ -17,7 +17,7 @@
 /// _index = [ 18, 7, 11, 4, 3, 6 ,5 ]
 /// _offset = 3
 ///
-/// the index is the lenghts, followed by their pairwise sums, followed by their pairwise sums,
+/// the index is the lenghts, preceded by their pairwise sums, preceded by their pairwise sums,
 /// etc.
 ///
 /// The index is used for positional indexing.
@@ -87,7 +87,7 @@ impl JenksIndex {
         //  1, 2,
         //3,4,5,6, ]
         let lchild = pos * 2 + 1;
-        if lchild > self.index.len() {
+        if lchild >= self.index.len() {
             None
         } else {
             Some(lchild)
@@ -95,7 +95,7 @@ impl JenksIndex {
     }
     pub fn right_child(&self, pos: usize) -> Option<usize> {
         let rchild = pos * 2 + 2;
-        if rchild > self.index.len() {
+        if rchild >= self.index.len() {
             None
         } else {
             Some(rchild)
@@ -103,7 +103,7 @@ impl JenksIndex {
     }
 
     pub fn parent(&self, pos: usize) -> Option<usize> {
-        if pos == 0 || pos > self.index.len() {
+        if pos == 0 || pos >= self.index.len() {
             None
         } else {
             Some((pos - 1) / 2)
@@ -117,7 +117,6 @@ impl JenksIndex {
 }
 
 fn pair_sum(a: &Vec<usize>) -> Vec<usize> {
-    let mut even = false; //false so we return the first
     a.chunks(2).map(|pair| pair.iter().fold(0, |x, y| x + y)).collect()
 }
 
@@ -134,7 +133,7 @@ mod tests {
         assert_eq!(single, pair_sum(&single));
 
         let single_2: Vec<usize> = vec![1010];
-        assert_eq!(single, pair_sum(&single));
+        assert_eq!(single_2, pair_sum(&single_2));
 
         let a: Vec<usize> = vec![1, 2, 3, 4];
         assert_eq!(vec![3, 7], pair_sum(&a));
@@ -143,24 +142,35 @@ mod tests {
         assert_eq!(vec![1220, 2], pair_sum(&b));
     }
 
+    #[test]
     pub fn test_from_value_lists() {
-        let from_lists =
-            JenksIndex::from_value_lists(&vec![vec![1, 2, 3], vec![4, 18], vec![37, 38, 4]]);
-        // todo
+        assert_eq!(JenksIndex::from_value_lists::<u8>(&vec![]).index, vec![]);
+        assert_eq!(JenksIndex::from_value_lists::<u16>(&vec![vec![0]]).index, vec![1]);
+        assert_eq!(JenksIndex::from_value_lists::<usize>(&vec![vec![1],vec![2]]).index, vec![2,1,1]);
+        assert_eq!(JenksIndex::from_value_lists::<i64>(&vec![vec![1,10,20],vec![2]]).index, vec![4,3,1]);
+        assert_eq!(JenksIndex::from_value_lists::<u64>(&vec![vec![1,10,20],vec![2,8]]).index, vec![5,3,2]);
+
+        let from_lists = JenksIndex::from_value_lists(&vec![vec![1, 2, 3], vec![4, 18], vec![37, 38, 4]]);
+        assert_eq!(from_lists.index, vec![8,5,3,3,2,3])
     }
 
+    #[test]
     pub fn test_left_child() {
         let empty_index = JenksIndex { index: vec![] };
-        let single_index = JenksIndex { index: vec![0] };
         assert_eq!(empty_index.left_child(0), None);
+        assert_eq!(empty_index.right_child(0), None);
+
+        let single_index = JenksIndex { index: vec![0] };
         assert_eq!(single_index.left_child(0), None);
+        assert_eq!(single_index.right_child(0), None);
 
         let several_index = JenksIndex { index: vec![3, 1, 2] };
         assert_eq!(several_index.left_child(0), Some(1));
     }
 
+    #[test]
     pub fn test_parent() {
-        let mut j = JenksIndex { index: vec![0] };
+        let mut j = JenksIndex { index: vec![] };
         assert_eq!(j.parent(0), None);
         assert_eq!(j.parent(1), None);
         assert_eq!(j.parent(2), None);
@@ -185,6 +195,7 @@ mod tests {
         assert_eq!(j.parent(3), Some(1));
         j.index.push(34);
         j.index.push(55);
+        j.index.push(0);
         assert_eq!(j.parent(0), None);
         assert_eq!(j.parent(1), Some(0));
         assert_eq!(j.parent(2), Some(0));
@@ -195,7 +206,7 @@ mod tests {
         assert_eq!(j.parent(7), None);
     }
 
-
+    #[test]
     pub fn test_right_child() {
         let empty_index = JenksIndex { index: vec![] };
         let single_index = JenksIndex { index: vec![0] };
