@@ -34,17 +34,6 @@ pub struct JenksIndex {
     pub index: Vec<usize>,
 }
 
-//impl From<Vec<usize>> for JenksIndex {
-//fn from(v: Vec<usize>) -> Self {
-//JenksIndex{index: v}
-//}
-//}
-
-//pub struct JenksIterator<'a> {
-//    pos: usize,
-//    index: &'a Vec<usize>,
-//}
-
 impl JenksIndex {
     /// Calculate the "Jenks Index" of the set, which is basically a heap-like lookup tree.
     ///
@@ -112,9 +101,6 @@ impl JenksIndex {
 
 
     ///increments the index, based on a new value being added to a list.
-    ///```
-    /// 
-    ///```
     pub fn increment_above_leaf(&mut self, pos: usize) {
         assert!(pos <= self.index.len());
         if pos == self.index.len() {
@@ -225,4 +211,18 @@ mod tests {
         let several_index = JenksIndex { index: vec![3, 1, 2] };
         assert_eq!(several_index.right_child(0), Some(2));
     }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    pub fn increment_above_leaf_requires_valid_index() {
+        let mut index = JenksIndex{index: vec![]};
+        index.increment_above_leaf(1);
+    }
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    pub fn increment_above_leaf_requires_valid_index_2() {
+        let mut index = JenksIndex{index: vec![0]};
+        index.increment_above_leaf(2);
+    }
 }
+
