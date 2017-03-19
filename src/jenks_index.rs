@@ -40,10 +40,10 @@ pub struct JenksIndex {
 //}
 //}
 
-pub struct JenksIterator<'a> {
-    pos: usize,
-    index: &'a Vec<usize>,
-}
+//pub struct JenksIterator<'a> {
+//    pos: usize,
+//    index: &'a Vec<usize>,
+//}
 
 impl JenksIndex {
     /// Calculate the "Jenks Index" of the set, which is basically a heap-like lookup tree.
@@ -110,9 +110,18 @@ impl JenksIndex {
         }
     }
 
-    pub fn increment_above_leaf(&mut self, pos: usize) {
-        self.index[pos] += 1;
 
+    ///increments the index, based on a new value being added to a list.
+    ///```
+    /// 
+    ///```
+    pub fn increment_above_leaf(&mut self, pos: usize) {
+        assert!(pos <= self.index.len());
+        if pos == self.index.len() {
+            self.index.push(1);
+        } else {
+            self.index[pos] += 1;
+        }
     }
 }
 

@@ -46,7 +46,7 @@ impl<T: PartialOrd + Copy> SortedList<T> {
             // TODO: I think this results in an extra list if we keep inserting the same value. But
             // bisect_left would do the same? No, it would put it in the list with its equal. But
             // we should push to the right if we can...... think about this later.
-            which_list = bisect_left(&self.maxes, &val);
+            which_list = bisect_right(&self.maxes, &val);
 
             if which_list == self.maxes.len() {
                 which_list -= 1;
