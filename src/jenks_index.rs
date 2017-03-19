@@ -98,17 +98,48 @@ impl JenksIndex {
             Some((pos - 1) / 2)
         }
     }
+//
+//    /// increments the index, based on a new value being added to a list.
+//    /// panics if pos > self.index.len()
+//    /// The pos here is the n of the nth leaf node.
+//    pub fn increment_above_leaf(&mut self, pos: usize) {
+//        assert!(pos <= self.index.len());
+//        if pos == self.index.len() {
+//            self.index.push(0);
+//        }
+//
+//        let mut pos = pos;
+//        loop {
+//            self.index[pos] += 1;
+//            match self.parent(pos) {
+//                Some(p) => pos = p,
+//                None => break,
+//            }
+//        }
+//    }
+//
+//    /// Creates a new empty list at the given index.
+//    fn new_list(&mut self,pos: usize) {
+//        if (self.leafStart + pos == self.index.len()) {
+//            // push 
+//        }
+//
+//    }
 
-
-    ///increments the index, based on a new value being added to a list.
-    pub fn increment_above_leaf(&mut self, pos: usize) {
-        assert!(pos <= self.index.len());
-        if pos == self.index.len() {
-            self.index.push(1);
-        } else {
-            self.index[pos] += 1;
-        }
-    }
+//    /// returns the index of the first leaf node.
+//    fn leaf_start(&self) -> usize {
+//        // round up to the highest power of two greater than the size of the array, unless it's a
+//        // power of two, in which case it's len / 2
+//        // largest power of two greater than us, divided by two...
+//        // equals the highest bit set in our size.
+//        // todo: there has got to be a better way to write this.
+//        let l = self.index.len();
+//        let rv = match l.checked_next_power_of_two() {
+//            Some(n) => n / 2,
+//            None => (usize::max_value() >> 1) + 1,
+//        };
+//         if rv == l {l / 2} else {rv}
+//    }
 }
 
 fn pair_sum(a: &Vec<usize>) -> Vec<usize> {
@@ -212,17 +243,32 @@ mod tests {
         assert_eq!(several_index.right_child(0), Some(2));
     }
 
-    #[test]
-    #[should_panic(expected = "assertion failed")]
-    pub fn increment_above_leaf_requires_valid_index() {
-        let mut index = JenksIndex{index: vec![]};
-        index.increment_above_leaf(1);
-    }
-    #[test]
-    #[should_panic(expected = "assertion failed")]
-    pub fn increment_above_leaf_requires_valid_index_2() {
-        let mut index = JenksIndex{index: vec![0]};
-        index.increment_above_leaf(2);
-    }
+//    #[test]
+//    #[should_panic(expected = "assertion failed")]
+//    pub fn increment_above_leaf_requires_valid_index() {
+//        let mut index = JenksIndex{index: vec![]};
+//        index.increment_above_leaf(1);
+//    }
+//    #[test]
+//    #[should_panic(expected = "assertion failed")]
+//    pub fn increment_above_leaf_requires_valid_index_2() {
+//        let mut index = JenksIndex{index: vec![0]};
+//        index.increment_above_leaf(2);
+//    }
+//
+//    #[test]
+//    pub fn test_increment_above_leaf() {
+//        let mut index = JenksIndex{index: vec![]};
+//        index.increment_above_leaf(0);
+//        assert_eq!(index.index, vec![1]);
+//        index.increment_above_leaf(0);
+//        assert_eq!(index.index, vec![2]);
+//        index.increment_above_leaf(1);
+//        assert_eq!(index.index, vec![3,2,1/*,0*/]);
+//        index.increment_above_leaf(2);
+//        assert_eq!(index.index, vec![4,3,1,1/*,0*/]);
+//        index.increment_above_leaf(1);
+//        assert_eq!(index.index, vec![2,2,1]);
+//    }
 }
 

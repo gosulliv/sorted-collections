@@ -66,27 +66,39 @@ impl<T: PartialOrd + Copy> SortedList<T> {
     /// leaf node to the root. For an example traversal see self._loc.
     fn expand(&mut self, pos: usize) {
         if self.value_lists[pos].len() > self.twice_load_factor {
-            self.split_list(pos);
+            self.split_sublist(pos);
             // TODO: update index better.
             self.update_jenks_index();
         } else {
-            self.index.increment_above_leaf(pos);
+            // TODO
+            //self.index.increment_above_leaf(pos);
+            self.update_jenks_index();
         }
     }
 
     /// Assumes the list is not empty.
-    fn split_list(&mut self, pos: usize) {
+    fn split_sublist(&mut self, pos: usize) {
         let new_list = self.value_lists[pos].split_off(self.load_factor);
         self.maxes[pos] = *self.value_lists[pos].last().unwrap();
         self.maxes.insert(pos + 1, new_list.last().unwrap().clone());
         self.value_lists.insert(pos + 1, new_list);
     }
 
+    pub fn pop(&mut self) -> Option<T> {
+        let rv = match self.value_lists.last() {
+            Some(l) => l.pop(),
+            None => None,
+        }
+        self.update_jenks_index();
+        rv
+    }
 
-    //fn jenks_lookup(self, idx: usize) {
-    //let mut idx = idx;
-    //while (idx
-    //}
+    pub fn last(&mut self) -> Option<T> {
+        let rv = match self.value_lists.last() {
+            Some(l) => l.pop(),
+            None => None,
+        }
+    }
 }
 
 pub struct SortedListIter<T> {
@@ -213,9 +225,19 @@ mod tests {
     pub fn basic_list_test() {
         let mut list = SortedList::default();
         list.add(3);
+        assert!(list.contains(3));
+        assert!(!list.contains(13));
         list.add(13);
         assert!(list.contains(3));
         assert!(list.contains(13));
         assert!(!list.contains(1));
+        assert_eq!(13, list.pop());
+        assert!(list.contains(3));
+        assert!(!list.contains(13));
+        assert_eq!(3,list.last());
+        list.add(1);
+        assert_eq!(3,list.last());
+        list.add(20);
+        assert_eq!(20, list.last());
     }
 }
