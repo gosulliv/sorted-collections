@@ -74,18 +74,18 @@ pub fn insort_left<T: PartialOrd>(a: &mut Vec<T>, x: T) {
 #[cfg(test)]
 mod tests {
     use super::*;
-#[test]
+    #[test]
     pub fn simple_bisects() {
-        assert_eq!(bisect_left(&vec![],&1),0);
-        assert_eq!(bisect_left(&vec![],&0),0);
-        assert_eq!(bisect_left(&vec![1],&0),0);
-        assert_eq!(bisect_left(&vec![1],&1),0);
-        assert_eq!(bisect_left(&vec![1],&2),1);
+        assert_eq!(bisect_left(&vec![], &1), 0);
+        assert_eq!(bisect_left(&vec![], &0), 0);
+        assert_eq!(bisect_left(&vec![1], &0), 0);
+        assert_eq!(bisect_left(&vec![1], &1), 0);
+        assert_eq!(bisect_left(&vec![1], &2), 1);
 
-        assert_eq!(bisect_right(&vec![],&1),0);
-        assert_eq!(bisect_right(&vec![],&0),0);
-        assert_eq!(bisect_right(&vec![1],&0),0);
-        assert_eq!(bisect_right(&vec![1],&1),1);
-        assert_eq!(bisect_right(&vec![1],&2),1);
-}
+        assert_eq!(bisect_right(&vec![], &1), 0);
+        assert_eq!(bisect_right(&vec![], &0), 0);
+        assert_eq!(bisect_right(&vec![1], &0), 0);
+        assert_eq!(bisect_right(&vec![1], &1), 1);
+        assert_eq!(bisect_right(&vec![1], &2), 1);
+    }
 }

@@ -2,6 +2,11 @@
 //!
 //! Copied from Grant Jenks' sorted containers.
 
+// TODO:
+// make sure the index is never truly empty (should be [0] if empty).
+//
+// other invariants?
+
 use bisect::*;
 use jenks_index::JenksIndex;
 use std::default::Default;
@@ -14,7 +19,6 @@ const DEFAULT_LOAD_FACTOR: usize = 1000;
 // todo: make not copy.
 #[derive(Debug)]
 struct SortedList<T: PartialOrd + Copy> {
-    total_elements: usize,
     value_lists: Vec<Vec<T>>,
     maxes: Vec<T>,
     index: JenksIndex,
@@ -32,7 +36,7 @@ impl<T: PartialOrd + Copy> SortedList<T> {
     pub fn contains(&self, val: &T) -> bool {
         let pos = bisect_left(&self.maxes, val);
         if pos >= self.value_lists.len() {
-            return false
+            return false;
         }
         self.value_lists[pos].contains(val)
     }
@@ -58,7 +62,6 @@ impl<T: PartialOrd + Copy> SortedList<T> {
                 insort_left(&mut self.value_lists[which_list], val);
             }
         }
-        self.total_elements += 1;
         self.expand(which_list);
     }
 
@@ -84,6 +87,21 @@ impl<T: PartialOrd + Copy> SortedList<T> {
         self.maxes[pos] = *self.value_lists[pos].last().unwrap();
         self.maxes.insert(pos + 1, new_list.last().unwrap().clone());
         self.value_lists.insert(pos + 1, new_list);
+    }
+
+    pub fn pop_first(&mut self) -> Option<T> {
+        if self.index.head() == 0 {
+            None
+        } else {
+            Some(self.value_lists
+                     .first_mut()
+                     .unwrap()
+                     .remove(0))
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        return self.index.head();
     }
 
     pub fn pop_last(&mut self) -> Option<T> {
@@ -162,7 +180,6 @@ impl<T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
 //
 //        SortedList{
 //            value_lists: value_lists,
-//            total_elements: s.len(),
 //            maxes: value_lists.map(|x| x.last().unwrap()),
 //            index: JenksIndex::from_value_lists(value_lists),
 //            load_factor: DEFAULT_LOAD_FACTOR,
@@ -183,7 +200,6 @@ impl<T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
 impl<T: PartialOrd + Copy> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
-            total_elements: 0,
             value_lists: vec![vec![]],
             maxes: vec![],
             index: JenksIndex { index: vec![] },
@@ -199,8 +215,6 @@ mod tests {
     #[test]
     pub fn it_builds() {
         let default = SortedList::<u8>::default();
-        assert!(default.total_elements == 0);
-        assert!(default.total_elements == 0);
         assert!(default.value_lists.len() == 1);
         assert!(default.value_lists[0].len() == 0);
         assert!(default.maxes.len() == 0);
@@ -213,7 +227,6 @@ mod tests {
         assert_eq!(index, JenksIndex { index: vec![0] });
 
         let list: SortedList<u64> = SortedList {
-            total_elements: 5,
             value_lists: vec![vec![1, 2, 3, 4, 5]],
             maxes: vec![5],
             index: JenksIndex { index: vec![5] },
@@ -237,9 +250,9 @@ mod tests {
         assert_eq!(13, list.pop_last().unwrap());
         assert!(list.contains(&3));
         assert!(!list.contains(&13));
-        assert_eq!(&3,list.last().unwrap());
+        assert_eq!(&3, list.last().unwrap());
         list.add(1);
-        assert_eq!(&3,list.last().unwrap());
+        assert_eq!(&3, list.last().unwrap());
         list.add(20);
         assert_eq!(&20, list.last().unwrap());
     }
