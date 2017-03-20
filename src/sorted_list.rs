@@ -29,10 +29,12 @@ impl<T: PartialOrd + Copy> SortedList<T> {
         self.index = JenksIndex::from_value_lists(&self.value_lists);
     }
 
-    pub fn contains(&self, val: T) -> bool {
-        let pos = bisect_left(&self.maxes, &val);
-        let idx = bisect_left(&self.value_lists[pos], &val);
-        self.value_lists[pos][idx] == val
+    pub fn contains(&self, val: &T) -> bool {
+        let pos = bisect_left(&self.maxes, val);
+        if pos >= self.value_lists.len() {
+            return false
+        }
+        self.value_lists[pos].contains(val)
     }
 
     pub fn add(&mut self, val: T) {
@@ -84,18 +86,19 @@ impl<T: PartialOrd + Copy> SortedList<T> {
         self.value_lists.insert(pos + 1, new_list);
     }
 
-    pub fn pop(&mut self) -> Option<T> {
-        let rv = match self.value_lists.last() {
+    pub fn pop_last(&mut self) -> Option<T> {
+        let rv = match self.value_lists.last_mut() {
             Some(l) => l.pop(),
             None => None,
-        }
+        };
         self.update_jenks_index();
         rv
     }
 
-    pub fn last(&mut self) -> Option<T> {
-        let rv = match self.value_lists.last() {
-            Some(l) => l.pop(),
+    /// Returns a reference to the last (maximum) value in the list.
+    pub fn last(&mut self) -> Option<&T> {
+        match self.value_lists.last() {
+            Some(l) => l.last(),
             None => None,
         }
     }
@@ -225,19 +228,19 @@ mod tests {
     pub fn basic_list_test() {
         let mut list = SortedList::default();
         list.add(3);
-        assert!(list.contains(3));
-        assert!(!list.contains(13));
+        assert!(list.contains(&3));
+        assert!(!list.contains(&13));
         list.add(13);
-        assert!(list.contains(3));
-        assert!(list.contains(13));
-        assert!(!list.contains(1));
-        assert_eq!(13, list.pop());
-        assert!(list.contains(3));
-        assert!(!list.contains(13));
-        assert_eq!(3,list.last());
+        assert!(list.contains(&3));
+        assert!(list.contains(&13));
+        assert!(!list.contains(&1));
+        assert_eq!(13, list.pop_last().unwrap());
+        assert!(list.contains(&3));
+        assert!(!list.contains(&13));
+        assert_eq!(&3,list.last().unwrap());
         list.add(1);
-        assert_eq!(3,list.last());
+        assert_eq!(&3,list.last().unwrap());
         list.add(20);
-        assert_eq!(20, list.last());
+        assert_eq!(&20, list.last().unwrap());
     }
 }
