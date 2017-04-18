@@ -41,7 +41,7 @@ impl<T: PartialOrd + Copy> SortedList<T> {
         self.value_lists[pos].contains(val)
     }
 
-    pub fn add(&mut self, val: T) {
+    pub fn insert(&mut self, val: T) {
         let mut which_list;
         if self.maxes.is_empty() {
             assert!(!self.value_lists.is_empty());
@@ -89,6 +89,21 @@ impl<T: PartialOrd + Copy> SortedList<T> {
         self.value_lists.insert(pos + 1, new_list);
     }
 
+    pub fn first(&self) -> Option<&T> {
+        match self.value_lists.first() {
+            Some(l) => l.first(),
+            None => None,
+        }
+    }
+
+    /// Returns a reference to the last (maximum) value in the list.
+    pub fn last(&mut self) -> Option<&T> {
+        match self.value_lists.last() {
+            Some(l) => l.last(),
+            None => None,
+        }
+    }
+
     pub fn pop_first(&mut self) -> Option<T> {
         if self.index.head() == 0 {
             None
@@ -100,25 +115,18 @@ impl<T: PartialOrd + Copy> SortedList<T> {
         }
     }
 
-    pub fn len(&self) -> usize {
-        return self.index.head();
-    }
-
     pub fn pop_last(&mut self) -> Option<T> {
         let rv = match self.value_lists.last_mut() {
             Some(l) => l.pop(),
             None => None,
         };
+        // TODO: expand?
         self.update_jenks_index();
         rv
     }
 
-    /// Returns a reference to the last (maximum) value in the list.
-    pub fn last(&mut self) -> Option<&T> {
-        match self.value_lists.last() {
-            Some(l) => l.last(),
-            None => None,
-        }
+    pub fn len(&self) -> usize {
+        return self.index.head();
     }
 }
 
@@ -167,7 +175,7 @@ impl<T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
         let mut list = Self::default();
         let mut iter = iter.into_iter();
         while let Some(x) = iter.next() {
-            list.add(x);
+            list.insert(x);
         }
         list
     }
@@ -240,20 +248,25 @@ mod tests {
     #[test]
     pub fn basic_list_test() {
         let mut list = SortedList::default();
-        list.add(3);
+        list.insert(3);
         assert!(list.contains(&3));
         assert!(!list.contains(&13));
-        list.add(13);
+        assert_eq!(&3, list.first().unwrap());
+        assert_eq!(&3, list.last().unwrap());
+        list.insert(13);
         assert!(list.contains(&3));
         assert!(list.contains(&13));
         assert!(!list.contains(&1));
+        assert_eq!(&3, list.first().unwrap());
+        assert_eq!(&13, list.last().unwrap());
         assert_eq!(13, list.pop_last().unwrap());
         assert!(list.contains(&3));
         assert!(!list.contains(&13));
         assert_eq!(&3, list.last().unwrap());
-        list.add(1);
+        list.insert(1);
         assert_eq!(&3, list.last().unwrap());
-        list.add(20);
+        list.insert(20);
         assert_eq!(&20, list.last().unwrap());
     }
+
 }
