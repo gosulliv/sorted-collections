@@ -1,8 +1,12 @@
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
 
 //pub use bisect::*;
 pub mod sorted_list;
 pub mod bisect;
 mod jenks_index;
+
 
 #[cfg(test)]
 mod tests {

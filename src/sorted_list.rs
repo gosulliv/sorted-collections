@@ -18,7 +18,7 @@ const DEFAULT_LOAD_FACTOR: usize = 1000;
 
 // todo: make not copy.
 #[derive(Debug)]
-struct SortedList<T: PartialOrd + Copy> {
+struct SortedList<T: Ord + Copy> {
     value_lists: Vec<Vec<T>>,
     maxes: Vec<T>,
     index: JenksIndex,
@@ -28,7 +28,7 @@ struct SortedList<T: PartialOrd + Copy> {
 
 /// The sorted list you've all been waiting for.
 /// Hopefully it has really good performance.
-impl<T: PartialOrd + Copy> SortedList<T> {
+impl<T: Ord + Copy> SortedList<T> {
     fn update_jenks_index(&mut self) {
         self.index = JenksIndex::from_value_lists(&self.value_lists);
     }
@@ -130,11 +130,53 @@ impl<T: PartialOrd + Copy> SortedList<T> {
     }
 }
 
-pub struct SortedListIter<T> {
+//pub struct Iter<'a, T: 'a> {
+//    list_list_iter: &'a Iter<Vec<&a T>>,
+//    curr_list_iter: &'a Iter<&'a T>,
+//}
+
+    //pub fn iter(&self) -> Iter<&T> {
+    //    Iter {
+    //        list_list_iter: self.value_lists.iter(),
+    //        curr_list_iter: vec![].iter(),
+    //    }
+    //}
+
+
+
+pub struct IntoIter<T> {
     list_list_iter: ::std::vec::IntoIter<Vec<T>>,
     curr_list_iter: ::std::vec::IntoIter<T>,
 }
-impl<'a, T: PartialOrd + Copy> Iterator for SortedListIter<T> {
+
+//impl<'a, T: Ord + Copy> Iterator for Iter<T> {
+//    type Item = &'a T;
+//    fn next(&mut self) -> Option<Self::Item> {
+//        match self.curr_list_iter.next() {
+//            Some(x) => Some(x),
+//            None => {
+//                match self.list_list_iter.next() {
+//                    Some(x) => {
+//                        self.curr_list_iter = x.into_iter();
+//                        self.next()
+//                    }
+//                    None => None,
+//                }
+//            }
+//        }
+//    }
+//
+//    fn size_hint(&self) -> (usize, Option<usize>) {
+//        let (ll_min, ll_max) = self.list_list_iter.size_hint();
+//        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
+//        match (ll_max, cl_max) {
+//            (Some(x), Some(y)) => Some(x + y),
+//            _ => None,
+//        }
+//    }
+//}
+
+impl<T: Ord + Copy> Iterator for IntoIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
         match self.curr_list_iter.next() {
@@ -150,14 +192,25 @@ impl<'a, T: PartialOrd + Copy> Iterator for SortedListIter<T> {
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (ll_min, ll_max) = self.list_list_iter.size_hint();
+        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
+        (ll_min + cl_min,
+         match (ll_max, cl_max) {
+             (Some(x), Some(y)) => Some(x + y),
+             _ => None,
+         }
+        )
+    }
 }
 
-impl<'a, T: PartialOrd + Copy> IntoIterator for SortedList<T> {
+impl<'a, T: Ord + Copy> IntoIterator for SortedList<T> {
     type Item = T;
-    type IntoIter = SortedListIter<T>;
+    type IntoIter = IntoIter<T>;
 
-    fn into_iter(self) -> SortedListIter<T> {
-        SortedListIter {
+    fn into_iter(self) -> IntoIter<T> {
+        IntoIter {
             list_list_iter: self.value_lists.into_iter(),
             curr_list_iter: vec![].into_iter(),
         }
@@ -168,7 +221,7 @@ impl<'a, T: PartialOrd + Copy> IntoIterator for SortedList<T> {
 /// collection we're sorting, so what do you expect?
 ///
 /// Actually may not be that bad based on the performance analysis that's todo
-impl<T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
+impl<T: Copy + Ord> FromIterator<T> for SortedList<T> {
     fn from_iter<F>(iter: F) -> Self
         where F: IntoIterator<Item = T>
     {
@@ -205,7 +258,7 @@ impl<T: Copy + PartialOrd> FromIterator<T> for SortedList<T> {
 //    }
 //}
 
-impl<T: PartialOrd + Copy> Default for SortedList<T> {
+impl<T: Ord + Copy> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
             value_lists: vec![vec![]],
@@ -269,4 +322,41 @@ mod tests {
         assert_eq!(&20, list.last().unwrap());
     }
 
+}
+
+#[cfg(test)]
+mod quickcheck_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn iters_equal<T: PartialEq, A: Iterator<Item = T>, B: Iterator<Item = T>>(a: &mut A, b: &mut B) -> bool{
+        a.all(|alpha| match b.next() {
+                Some(beta) => alpha == beta,
+                None => false
+        }) && b.next() == None
+    }
+
+//    quickcheck! {
+//        // TODO: make this clone instead of copy.
+//        // Also, PartialOrd?
+//        //fn prop_from_iter_sorted<T: Copy + Ord>(list: &mut [T]) -> bool {
+//        //    let from_iter: SortedList<T> = list.iter().collect();
+//        //    let from_collection = {
+//        //        let mut collection = SortedList<T>::default();
+//        //        for x in list { collection.insert(X); }
+//        //        collection
+//        //    }
+//        //    from_iter == list.sort()
+//        //}
+//        fn prop_from_iter_sorted_u8(list: Vec<u8>) -> bool {
+//            let from_iter: SortedList<u8> = list.into_iter().collect();
+//            let from_collection = {
+//                let mut collection = SortedList::default();
+//                for x in list { collection.insert(x); }
+//                collection
+//            };
+//
+//            //iters_equal(&mut from_iter.iter(), &mut list.iter())
+//        }
+//    }
 }

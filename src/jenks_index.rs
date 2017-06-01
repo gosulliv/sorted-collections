@@ -17,7 +17,7 @@
 /// _index = [ 18, 7, 11, 4, 3, 6 ,5 ]
 /// _offset = 3
 ///
-/// the index is the lenghts, preceded by their pairwise sums, preceded by their pairwise sums,
+/// the index is the lengths, preceded by their pairwise sums, preceded by their pairwise sums,
 /// etc.
 ///
 /// The index is used for positional indexing.
