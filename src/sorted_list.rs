@@ -209,6 +209,47 @@ impl<'a, T: Ord + Copy> IntoIterator for SortedList<T> {
     }
 }
 
+struct IterMut<'a, T: 'a> {
+    list_list_iter: ::std::slice::IterMut<'a, Vec<T>>,
+    curr_list_iter: ::std::slice::IterMut<'a, T>,
+}
+
+impl<'a, T: Ord + Copy> Iterator for IterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr_list_iter.next().or_else(|| {
+            self.list_list_iter.next().and_then(|x| {
+                self.curr_list_iter = x.into_iter();
+                self.next()
+            })
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (ll_min, ll_max) = self.list_list_iter.size_hint();
+        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
+        (ll_min + cl_min,
+         match (ll_max, cl_max) {
+             (Some(x), Some(y)) => Some(x + y),
+             _ => None,
+         }
+        )
+    }
+}
+
+impl<T: Ord + Copy> SortedList<T> {
+    fn iter_mut(&mut self) -> IterMut<T> {
+        let mut ll_iter = self.value_lists.iter_mut();
+        let mut cl_iter = ll_iter.next().unwrap().iter_mut();
+
+        IterMut{
+            list_list_iter: ll_iter,
+            curr_list_iter: cl_iter,
+        }
+    }
+}
+
 /// Does a probably O(n^2) collection from an iterator -- but it's an iterator, not a
 /// collection we're sorting, so what do you expect?
 ///
