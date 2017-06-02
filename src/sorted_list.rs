@@ -138,7 +138,8 @@ pub struct Iter<'a, T: 'a> {
 impl<T: Ord + Copy> SortedList<T> {
     pub fn iter(&self) -> Iter<T> {
         let mut ll_iter = self.value_lists.iter();
-        let mut cl_iter = ll_iter.next().unwrap().iter(); // TODO
+        // TODO make sure there is always at least one vec in the list.
+        let mut cl_iter = ll_iter.next().unwrap().iter();
         Iter {
             list_list_iter: ll_iter,
             curr_list_iter: cl_iter,
@@ -149,21 +150,19 @@ impl<T: Ord + Copy> SortedList<T> {
 impl<'a, T: Ord + Copy> Iterator for Iter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.curr_list_iter.next() {
-            Some(x) => Some(x),
-            None => {
-                self.list_list_iter.next().and_then(|x| { 
-                    self.curr_list_iter = x.into_iter();
-                    self.next()
-                })
-            }
-        }
+        self.curr_list_iter.next().or_else(|| {
+            self.list_list_iter.next().and_then(|x| {
+                self.curr_list_iter = x.into_iter();
+                self.next()
+            })
+        })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (ll_min, ll_max) = self.list_list_iter.size_hint();
         let (cl_min, cl_max) = self.curr_list_iter.size_hint();
-        (ll_min + cl_min, match (ll_max, cl_max) {
+        (ll_min + cl_min,
+         match (ll_max, cl_max) {
             (Some(x), Some(y)) => Some(x + y),
             _ => None,
         })
@@ -178,18 +177,12 @@ pub struct IntoIter<T> {
 impl<T: Ord + Copy> Iterator for IntoIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.curr_list_iter.next() {
-            Some(x) => Some(x),
-            None => {
-                match self.list_list_iter.next() {
-                    Some(x) => {
-                        self.curr_list_iter = x.into_iter();
-                        self.next()
-                    }
-                    None => None,
-                }
-            }
-        }
+        self.curr_list_iter.next().or_else(|| {
+            self.list_list_iter.next().and_then(|x| {
+                self.curr_list_iter = x.into_iter();
+                self.next()
+            })
+        })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -232,30 +225,6 @@ impl<T: Copy + Ord> FromIterator<T> for SortedList<T> {
         list
     }
 }
-
-//impl<'a, T> From<&'a [T]> for SortedList<T> where T: Clone {
-//    fn from(s: &'a [T]) -> SortedList<T> {
-//        let starting_size = DEFAULT_LOAD_FACTOR + DEFAULT_LOAD_FACTOR/2;
-//        let value_lists = s.sorted().iter().chunks(starting_size).map(|x| x.collect()).collect();
-//
-//        SortedList{
-//            value_lists: value_lists,
-//            maxes: value_lists.map(|x| x.last().unwrap()),
-//            index: JenksIndex::from_value_lists(value_lists),
-//            load_factor: DEFAULT_LOAD_FACTOR,
-//            twice_load_factor: DEFAULT_LOAD_FACTOR*2,
-//        }
-//    }
-//}
-
-// todo: Index<Range<usize>>
-//impl<T> Index<usize> for SortedList<T> {
-//    fn index(&self, index: usize) -> &T {
-//        let mut currindex = index;
-//        let mut
-//        self.index[0]
-//    }
-//}
 
 impl<T: Ord + Copy> Default for SortedList<T> {
     fn default() -> Self {
