@@ -19,7 +19,7 @@ const DEFAULT_LOAD_FACTOR: usize = 1000;
 // todo: make not copy.
 #[derive(Debug)]
 struct SortedList<T: Ord + Copy> {
-    value_lists: Vec<Vec<T>>,
+    value_lists: Vec<Vec<T>>, // There is always at least one vec in this list.
     maxes: Vec<T>,
     index: JenksIndex,
     load_factor: usize,
@@ -138,7 +138,6 @@ pub struct Iter<'a, T: 'a> {
 impl<T: Ord + Copy> SortedList<T> {
     pub fn iter(&self) -> Iter<T> {
         let mut ll_iter = self.value_lists.iter();
-        // TODO make sure there is always at least one vec in the list.
         let mut cl_iter = ll_iter.next().unwrap().iter();
         Iter {
             list_list_iter: ll_iter,
@@ -308,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    pub fn basic_list_test() {
+    pub fn basic_test() {
         let mut list = SortedList::default();
         list.insert(3);
         assert!(list.contains(&3));
@@ -330,42 +329,52 @@ mod tests {
         list.insert(20);
         assert_eq!(&20, list.last().unwrap());
     }
-
 }
 
 #[cfg(test)]
 mod quickcheck_tests {
-    use super::*;
-    use std::collections::BTreeMap;
+    use super::SortedList;
 
-    fn iters_equal<T: PartialEq, A: Iterator<Item = T>, B: Iterator<Item = T>>(a: &mut A, b: &mut B) -> bool{
-        a.all(|alpha| match b.next() {
-                Some(beta) => alpha == beta,
-                None => false
-        }) && b.next() == None
+    fn prop_from_iter_sorted<T: Ord + Copy>(list: Vec<T>) -> bool {
+        let mut list = list.clone(); // can't get mutable values from quickcheck.
+        list.sort();
+        let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
+        let from_collection = {
+            let mut collection = SortedList::default();
+            for x in list.iter() { collection.insert(*x); }
+            collection
+        };
+
+        from_iter.iter().eq(list.iter()) && from_collection.iter().eq(list.iter())
     }
 
-//    quickcheck! {
-//        // TODO: make this clone instead of copy.
-//        // Also, PartialOrd?
-//        //fn prop_from_iter_sorted<T: Copy + Ord>(list: &mut [T]) -> bool {
-//        //    let from_iter: SortedList<T> = list.iter().collect();
-//        //    let from_collection = {
-//        //        let mut collection = SortedList<T>::default();
-//        //        for x in list { collection.insert(X); }
-//        //        collection
-//        //    }
-//        //    from_iter == list.sort()
-//        //}
-//        fn prop_from_iter_sorted_u8(list: Vec<u8>) -> bool {
-//            let from_iter: SortedList<u8> = list.into_iter().collect();
-//            let from_collection = {
-//                let mut collection = SortedList::default();
-//                for x in list { collection.insert(x); }
-//                collection
-//            };
-//
-//            //iters_equal(&mut from_iter.iter(), &mut list.iter())
-//        }
-//    }
+    quickcheck! {
+        fn prop_from_iter_sorted_u8(list: Vec<u8>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_u16(list: Vec<u16>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_u32(list: Vec<u32>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_u64(list: Vec<u64>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_i8(list: Vec<i8>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_i32(list: Vec<i32>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_i64(list: Vec<i64>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+    }
 }
