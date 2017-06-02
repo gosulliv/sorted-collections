@@ -130,51 +130,50 @@ impl<T: Ord + Copy> SortedList<T> {
     }
 }
 
-//pub struct Iter<'a, T: 'a> {
-//    list_list_iter: &'a Iter<Vec<&a T>>,
-//    curr_list_iter: &'a Iter<&'a T>,
-//}
+pub struct Iter<'a, T: 'a> {
+    list_list_iter: ::std::slice::Iter<'a, Vec<T>>,
+    curr_list_iter: ::std::slice::Iter<'a, T>,
+}
 
-    //pub fn iter(&self) -> Iter<&T> {
-    //    Iter {
-    //        list_list_iter: self.value_lists.iter(),
-    //        curr_list_iter: vec![].iter(),
-    //    }
-    //}
+impl<T: Ord + Copy> SortedList<T> {
+    pub fn iter(&self) -> Iter<T> {
+        let mut ll_iter = self.value_lists.iter();
+        let mut cl_iter = ll_iter.next().unwrap().iter(); // TODO
+        Iter {
+            list_list_iter: ll_iter,
+            curr_list_iter: cl_iter,
+        }
+    }
+}
 
+impl<'a, T: Ord + Copy> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.curr_list_iter.next() {
+            Some(x) => Some(x),
+            None => {
+                self.list_list_iter.next().and_then(|x| { 
+                    self.curr_list_iter = x.into_iter();
+                    self.next()
+                })
+            }
+        }
+    }
 
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (ll_min, ll_max) = self.list_list_iter.size_hint();
+        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
+        (ll_min + cl_min, match (ll_max, cl_max) {
+            (Some(x), Some(y)) => Some(x + y),
+            _ => None,
+        })
+    }
+}
 
 pub struct IntoIter<T> {
     list_list_iter: ::std::vec::IntoIter<Vec<T>>,
     curr_list_iter: ::std::vec::IntoIter<T>,
 }
-
-//impl<'a, T: Ord + Copy> Iterator for Iter<T> {
-//    type Item = &'a T;
-//    fn next(&mut self) -> Option<Self::Item> {
-//        match self.curr_list_iter.next() {
-//            Some(x) => Some(x),
-//            None => {
-//                match self.list_list_iter.next() {
-//                    Some(x) => {
-//                        self.curr_list_iter = x.into_iter();
-//                        self.next()
-//                    }
-//                    None => None,
-//                }
-//            }
-//        }
-//    }
-//
-//    fn size_hint(&self) -> (usize, Option<usize>) {
-//        let (ll_min, ll_max) = self.list_list_iter.size_hint();
-//        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
-//        match (ll_max, cl_max) {
-//            (Some(x), Some(y)) => Some(x + y),
-//            _ => None,
-//        }
-//    }
-//}
 
 impl<T: Ord + Copy> Iterator for IntoIter<T> {
     type Item = T;
