@@ -27,7 +27,10 @@ struct SortedList<T: Ord + Copy> {
 }
 
 /// The sorted list you've all been waiting for.
-/// Hopefully it has really good performance.
+///
+/// It is a logic error for an item to be modified in such a way that the item's ordering relative
+/// to any other item, as determined by the `Ord` trait, changes while it is in the heap. This is
+/// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
 impl<T: Ord + Copy> SortedList<T> {
     fn update_jenks_index(&mut self) {
         self.index = JenksIndex::from_value_lists(&self.value_lists);
@@ -90,36 +93,26 @@ impl<T: Ord + Copy> SortedList<T> {
     }
 
     pub fn first(&self) -> Option<&T> {
-        match self.value_lists.first() {
-            Some(l) => l.first(),
-            None => None,
-        }
+        self.value_lists.first().and_then(|l| l.first())
     }
 
     /// Returns a reference to the last (maximum) value in the list.
     pub fn last(&mut self) -> Option<&T> {
-        match self.value_lists.last() {
-            Some(l) => l.last(),
-            None => None,
-        }
+        self.value_lists.last().and_then(|l| l.last())
     }
 
     pub fn pop_first(&mut self) -> Option<T> {
-        if self.index.head() == 0 {
-            None
-        } else {
-            Some(self.value_lists
-                     .first_mut()
-                     .unwrap()
-                     .remove(0))
+        if self.len() == 0 {
+            return None
         }
+
+        let rv = Some(self.value_lists.first_mut().unwrap().remove(0));
+        self.update_jenks_index();
+        rv
     }
 
     pub fn pop_last(&mut self) -> Option<T> {
-        let rv = match self.value_lists.last_mut() {
-            Some(l) => l.pop(),
-            None => None,
-        };
+        let rv = self.value_lists.last_mut().and_then(|l| l.pop());
         // TODO: expand?
         self.update_jenks_index();
         rv
@@ -138,7 +131,7 @@ pub struct Iter<'a, T: 'a> {
 impl<T: Ord + Copy> SortedList<T> {
     pub fn iter(&self) -> Iter<T> {
         let mut ll_iter = self.value_lists.iter();
-        let mut cl_iter = ll_iter.next().unwrap().iter();
+        let cl_iter = ll_iter.next().unwrap().iter();
         Iter {
             list_list_iter: ll_iter,
             curr_list_iter: cl_iter,
@@ -208,47 +201,6 @@ impl<'a, T: Ord + Copy> IntoIterator for SortedList<T> {
     }
 }
 
-struct IterMut<'a, T: 'a> {
-    list_list_iter: ::std::slice::IterMut<'a, Vec<T>>,
-    curr_list_iter: ::std::slice::IterMut<'a, T>,
-}
-
-impl<'a, T: Ord + Copy> Iterator for IterMut<'a, T> {
-    type Item = &'a mut T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.curr_list_iter.next().or_else(|| {
-            self.list_list_iter.next().and_then(|x| {
-                self.curr_list_iter = x.into_iter();
-                self.next()
-            })
-        })
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let (ll_min, ll_max) = self.list_list_iter.size_hint();
-        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
-        (ll_min + cl_min,
-         match (ll_max, cl_max) {
-             (Some(x), Some(y)) => Some(x + y),
-             _ => None,
-         }
-        )
-    }
-}
-
-impl<T: Ord + Copy> SortedList<T> {
-    fn iter_mut(&mut self) -> IterMut<T> {
-        let mut ll_iter = self.value_lists.iter_mut();
-        let mut cl_iter = ll_iter.next().unwrap().iter_mut();
-
-        IterMut{
-            list_list_iter: ll_iter,
-            curr_list_iter: cl_iter,
-        }
-    }
-}
-
 /// Does a probably O(n^2) collection from an iterator -- but it's an iterator, not a
 /// collection we're sorting, so what do you expect?
 ///
@@ -271,7 +223,7 @@ impl<T: Ord + Copy> Default for SortedList<T> {
         SortedList::<T> {
             value_lists: vec![vec![]],
             maxes: vec![],
-            index: JenksIndex { index: vec![] },
+            index: JenksIndex { index: vec![0] },
             load_factor: DEFAULT_LOAD_FACTOR,
             twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
         }
@@ -308,24 +260,45 @@ mod tests {
 
     #[test]
     pub fn basic_test() {
-        let mut list = SortedList::default();
+        let mut list: SortedList<i32> = SortedList::default();
+        assert_eq!(0, list.len());
+
         list.insert(3);
+
         assert!(list.contains(&3));
         assert!(!list.contains(&13));
         assert_eq!(&3, list.first().unwrap());
         assert_eq!(&3, list.last().unwrap());
+
         list.insert(13);
+
+        assert_eq!(2, list.len());
         assert!(list.contains(&3));
         assert!(list.contains(&13));
         assert!(!list.contains(&1));
         assert_eq!(&3, list.first().unwrap());
         assert_eq!(&13, list.last().unwrap());
+
         assert_eq!(13, list.pop_last().unwrap());
+
         assert!(list.contains(&3));
         assert!(!list.contains(&13));
         assert_eq!(&3, list.last().unwrap());
+
+        assert_eq!(3, list.pop_first().unwrap());
+
+        assert!(!list.contains(&3));
+
+        assert_eq!(1, list.value_lists.len());
+        assert_eq!(0, list.value_lists[0].len());
+
+        assert_eq!(0, list.len());
+
         list.insert(1);
-        assert_eq!(&3, list.last().unwrap());
+        assert_eq!(1, list.len());
+        assert_eq!(&1, list.last().unwrap());
+        assert_eq!(&1, list.first().unwrap());
+
         list.insert(20);
         assert_eq!(&20, list.last().unwrap());
     }
