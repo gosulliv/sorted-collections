@@ -11,6 +11,7 @@ use bisect::*;
 use jenks_index::JenksIndex;
 use std::default::Default;
 use std::iter::FromIterator;
+use std::collections::binary_heap::BinaryHeap;
 
 /// if the list size grows greater than the load factor, we split it.
 /// If the list size shrinks below the load factor, we join two lists.
@@ -18,9 +19,11 @@ const DEFAULT_LOAD_FACTOR: usize = 1000;
 
 // todo: make not copy.
 #[derive(Debug)]
-struct SortedList<T: Ord + Copy> {
+struct SortedList<T: Ord> {
+    // XXX : why do I have to specify a lifetime for T here?
+    // It's for maxes... But how do I specify that they will be refs into value_lists?
     value_lists: Vec<Vec<T>>, // There is always at least one vec in this list.
-    maxes: Vec<T>,
+    //maxes: Vec<DoubleIndex>,
     index: JenksIndex,
     load_factor: usize,
     twice_load_factor: usize, // cached for speed I guess?
@@ -31,41 +34,26 @@ struct SortedList<T: Ord + Copy> {
 /// It is a logic error for an item to be modified in such a way that the item's ordering relative
 /// to any other item, as determined by the `Ord` trait, changes while it is in the heap. This is
 /// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
-impl<T: Ord + Copy> SortedList<T> {
+impl<'a, T: Ord> SortedList<T> {
     fn update_jenks_index(&mut self) {
         self.index = JenksIndex::from_value_lists(&self.value_lists);
     }
 
     pub fn contains(&self, val: &T) -> bool {
-        let pos = bisect_left(&self.maxes, val);
-        if pos >= self.value_lists.len() {
-            return false;
-        }
-        self.value_lists[pos].contains(val)
+        // TODO make this faster?
+        self.value_lists.iter().find(|list| list.last() >= val && list.contains(val))
     }
 
-    pub fn insert(&mut self, val: T) {
-        let mut which_list;
-        if self.maxes.is_empty() {
-            assert!(!self.value_lists.is_empty());
-            self.value_lists[0].push(val);
-            self.maxes.push(val);
-            which_list = 0;
-        } else {
-            // TODO: I think this results in an extra list if we keep inserting the same value. But
-            // bisect_left would do the same? No, it would put it in the list with its equal. But
-            // we should push to the right if we can...... think about this later.
-            which_list = bisect_right(&self.maxes, &val);
+    fn insert(&mut self, x: T) {
+        assert!(!self.value_lists.is_empty());
 
-            if which_list == self.maxes.len() {
-                which_list -= 1;
-                self.value_lists[which_list].push(val);
-                self.maxes[which_list] = val;
-            } else {
-                insort_left(&mut self.value_lists[which_list], val);
-            }
-        }
-        self.expand(which_list);
+        let mut iter = self.value_lists.iter_mut().enumerate();
+
+        // unwrap is safe because the list is not empty. But the initial is kind of garbage.
+        let (list_idx, &mut list) = find_or_last(iter, |(idx, list)| list.last() >= *x);
+
+        insort_left(list, x);
+        self.expand(list_idx);
     }
 
     /// Splits sublists that are more than double the load level.
@@ -87,8 +75,6 @@ impl<T: Ord + Copy> SortedList<T> {
     /// Assumes the list is not empty.
     fn split_sublist(&mut self, pos: usize) {
         let new_list = self.value_lists[pos].split_off(self.load_factor);
-        self.maxes[pos] = *self.value_lists[pos].last().unwrap();
-        self.maxes.insert(pos + 1, new_list.last().unwrap().clone());
         self.value_lists.insert(pos + 1, new_list);
     }
 
@@ -99,6 +85,10 @@ impl<T: Ord + Copy> SortedList<T> {
     /// Returns a reference to the last (maximum) value in the list.
     pub fn last(&mut self) -> Option<&T> {
         self.value_lists.last().and_then(|l| l.last())
+    }
+
+    pub fn last_mut(&mut self) -> Option<&mut T> {
+        self.value_lists.last().and_then(|l| l.last_mut())
     }
 
     pub fn pop_first(&mut self) -> Option<T> {
@@ -128,7 +118,7 @@ pub struct Iter<'a, T: 'a> {
     curr_list_iter: ::std::slice::Iter<'a, T>,
 }
 
-impl<T: Ord + Copy> SortedList<T> {
+impl<'a, T: Ord> SortedList<T> {
     pub fn iter(&self) -> Iter<T> {
         let mut ll_iter = self.value_lists.iter();
         let cl_iter = ll_iter.next().unwrap().iter();
@@ -139,7 +129,7 @@ impl<T: Ord + Copy> SortedList<T> {
     }
 }
 
-impl<'a, T: Ord + Copy> Iterator for Iter<'a, T> {
+impl<'a, T: Ord> Iterator for Iter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
         self.curr_list_iter.next().or_else(|| {
@@ -166,7 +156,7 @@ pub struct IntoIter<T> {
     curr_list_iter: ::std::vec::IntoIter<T>,
 }
 
-impl<T: Ord + Copy> Iterator for IntoIter<T> {
+impl<T: Ord> Iterator for IntoIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
         self.curr_list_iter.next().or_else(|| {
@@ -189,7 +179,7 @@ impl<T: Ord + Copy> Iterator for IntoIter<T> {
     }
 }
 
-impl<'a, T: Ord + Copy> IntoIterator for SortedList<T> {
+impl<'a, T: Ord> IntoIterator for SortedList<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
@@ -205,7 +195,7 @@ impl<'a, T: Ord + Copy> IntoIterator for SortedList<T> {
 /// collection we're sorting, so what do you expect?
 ///
 /// Actually may not be that bad based on the performance analysis that's todo
-impl<T: Copy + Ord> FromIterator<T> for SortedList<T> {
+impl<'a, T: Ord> FromIterator<T> for SortedList<T> {
     fn from_iter<F>(iter: F) -> Self
         where F: IntoIterator<Item = T>
     {
@@ -218,11 +208,10 @@ impl<T: Copy + Ord> FromIterator<T> for SortedList<T> {
     }
 }
 
-impl<T: Ord + Copy> Default for SortedList<T> {
+impl<'a, T: Ord> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
             value_lists: vec![vec![]],
-            maxes: vec![],
             index: JenksIndex { index: vec![0] },
             load_factor: DEFAULT_LOAD_FACTOR,
             twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
@@ -238,7 +227,6 @@ mod tests {
         let default = SortedList::<u8>::default();
         assert!(default.value_lists.len() == 1);
         assert!(default.value_lists[0].len() == 0);
-        assert!(default.maxes.len() == 0);
     }
 
     #[test]
@@ -249,7 +237,6 @@ mod tests {
 
         let list: SortedList<u64> = SortedList {
             value_lists: vec![vec![1, 2, 3, 4, 5]],
-            maxes: vec![5],
             index: JenksIndex { index: vec![5] },
             load_factor: DEFAULT_LOAD_FACTOR,
             twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
@@ -304,14 +291,30 @@ mod tests {
     }
 }
 
+// returns None iff the first call to iter returns None.
+fn find_or_last<T, P>(iter: Iterator<Item = T>, predicate: P) -> Option<T>
+where P: FnMut(T,T) {
+    let mut state = None;
+
+    while let mut st = iter.next() {
+        state = st;
+        if predicate(state) {
+            return state;
+        }
+    }
+    state
+}
+
+
+
 #[cfg(test)]
 mod quickcheck_tests {
     use super::SortedList;
 
-    fn prop_from_iter_sorted<T: Ord + Copy>(list: Vec<T>) -> bool {
+    fn prop_from_iter_sorted<T: Ord>(list: Vec<T>) -> bool {
         let mut list = list.clone(); // can't get mutable values from quickcheck.
         list.sort();
-        let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
+        let from_iter: SortedList<'a, T> = list.iter().map(|x| x.clone()).collect();
         let from_collection = {
             let mut collection = SortedList::default();
             for x in list.iter() { collection.insert(*x); }
