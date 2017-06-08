@@ -1,7 +1,3 @@
-
-//type DoubleIndex = (usize, usize);
-
-///
 /// Locate the insertion point for x in a to maintain sorted order. The
 /// parameters lo and hi may be used to specify a subset of the list which
 /// should be considered; by default the entire list is used. If x is already
@@ -22,7 +18,7 @@
 /// assert_eq!(bisect_left(vec![1,2,4,8],2),2);
 /// ```
 ///
-pub fn bisect_left<T: PartialOrd>(a: &[&mut T], x: &T) -> usize {
+pub fn bisect_left<T: PartialOrd>(a: &Vec<T>, x: &T) -> usize {
     // naive implementation.
     for i in 0..a.len() {
         if a[i] >= *x {

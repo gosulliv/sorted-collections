@@ -11,22 +11,18 @@ use bisect::*;
 use jenks_index::JenksIndex;
 use std::default::Default;
 use std::iter::FromIterator;
-use std::collections::binary_heap::BinaryHeap;
 
 /// if the list size grows greater than the load factor, we split it.
 /// If the list size shrinks below the load factor, we join two lists.
 const DEFAULT_LOAD_FACTOR: usize = 1000;
 
-// todo: make not copy.
 #[derive(Debug)]
 struct SortedList<T: Ord> {
     // XXX : why do I have to specify a lifetime for T here?
     // It's for maxes... But how do I specify that they will be refs into value_lists?
     value_lists: Vec<Vec<T>>, // There is always at least one vec in this list.
-    //maxes: Vec<DoubleIndex>,
     index: JenksIndex,
     load_factor: usize,
-    twice_load_factor: usize, // cached for speed I guess?
 }
 
 /// The sorted list you've all been waiting for.
@@ -41,18 +37,27 @@ impl<'a, T: Ord> SortedList<T> {
 
     pub fn contains(&self, val: &T) -> bool {
         // TODO make this faster?
-        self.value_lists.iter().find(|list| list.last() >= val && list.contains(val))
+        self.value_lists.iter().any(|list|
+                                    list.last().map(|max| max >= val && list.contains(val))
+                                    .unwrap_or(false))
     }
 
-    fn insert(&mut self, x: T) {
+    fn insert(&mut self, new_val: T) {
         assert!(!self.value_lists.is_empty());
 
-        let mut iter = self.value_lists.iter_mut().enumerate();
+        let list_idx;
+        {
+            let iter = self.value_lists.iter_mut().enumerate();
 
-        // unwrap is safe because the list is not empty. But the initial is kind of garbage.
-        let (list_idx, &mut list) = find_or_last(iter, |(idx, list)| list.last() >= *x);
+            let (idx, list) =
+                find_or_last(iter, |&(_, ref list)|
+                             list.last().map(|list_max| list_max >= &new_val).unwrap_or(false))
+                .unwrap(); // unwrap is safe because the list is never empty.
 
-        insort_left(list, x);
+            list_idx = idx;
+
+            insort_left(list, new_val);
+        }
         self.expand(list_idx);
     }
 
@@ -61,7 +66,7 @@ impl<'a, T: Ord> SortedList<T> {
     /// level. This requires incrementing the nodes in a traversal from the
     /// leaf node to the root. For an example traversal see self._loc.
     fn expand(&mut self, pos: usize) {
-        if self.value_lists[pos].len() > self.twice_load_factor {
+        if self.value_lists[pos].len() > self.load_factor * 2 {
             self.split_sublist(pos);
             // TODO: update index better.
             self.update_jenks_index();
@@ -88,7 +93,7 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
     pub fn last_mut(&mut self) -> Option<&mut T> {
-        self.value_lists.last().and_then(|l| l.last_mut())
+        self.value_lists.last_mut().and_then(|l| l.last_mut())
     }
 
     pub fn pop_first(&mut self) -> Option<T> {
@@ -214,7 +219,6 @@ impl<'a, T: Ord> Default for SortedList<T> {
             value_lists: vec![vec![]],
             index: JenksIndex { index: vec![0] },
             load_factor: DEFAULT_LOAD_FACTOR,
-            twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
         }
     }
 }
@@ -239,7 +243,6 @@ mod tests {
             value_lists: vec![vec![1, 2, 3, 4, 5]],
             index: JenksIndex { index: vec![5] },
             load_factor: DEFAULT_LOAD_FACTOR,
-            twice_load_factor: DEFAULT_LOAD_FACTOR * 2,
         };
         let index = JenksIndex::from_value_lists(&list.value_lists);
         assert_eq!(JenksIndex { index: vec![5] }, index);
@@ -287,20 +290,18 @@ mod tests {
         assert_eq!(&1, list.first().unwrap());
 
         list.insert(20);
-        assert_eq!(&20, list.last().unwrap());
+        assert_eq!(&20, list.last_mut().unwrap());
     }
 }
 
 // returns None iff the first call to iter returns None.
-fn find_or_last<T, P>(iter: Iterator<Item = T>, predicate: P) -> Option<T>
-where P: FnMut(T,T) {
+fn find_or_last<T, I, P>(iter: I, mut predicate: P) -> Option<T>
+where P: FnMut(&T) -> bool, I: Iterator<Item = T> {
     let mut state = None;
 
-    while let mut st = iter.next() {
-        state = st;
-        if predicate(state) {
-            return state;
-        }
+    for x in iter {
+        if predicate(&x) { return Some(x) }
+        state = Some(x)
     }
     state
 }
@@ -311,13 +312,13 @@ where P: FnMut(T,T) {
 mod quickcheck_tests {
     use super::SortedList;
 
-    fn prop_from_iter_sorted<T: Ord>(list: Vec<T>) -> bool {
+    fn prop_from_iter_sorted<T: Ord + Clone>(list: Vec<T>) -> bool {
         let mut list = list.clone(); // can't get mutable values from quickcheck.
         list.sort();
-        let from_iter: SortedList<'a, T> = list.iter().map(|x| x.clone()).collect();
+        let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
         let from_collection = {
             let mut collection = SortedList::default();
-            for x in list.iter() { collection.insert(*x); }
+            for x in list.iter() { collection.insert(x.clone()); }
             collection
         };
 
