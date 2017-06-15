@@ -7,8 +7,6 @@
 //
 // other invariants?
 
-use bisect::*;
-use jenks_index::JenksIndex;
 use std::default::Default;
 use std::iter::FromIterator;
 
@@ -17,12 +15,18 @@ use std::iter::FromIterator;
 const DEFAULT_LOAD_FACTOR: usize = 1000;
 
 #[derive(Debug)]
-struct SortedList<T: Ord> {
-    // XXX : why do I have to specify a lifetime for T here?
-    // It's for maxes... But how do I specify that they will be refs into value_lists?
+pub struct SortedList<T: Ord> {
     value_lists: Vec<Vec<T>>, // There is always at least one vec in this list.
-    index: JenksIndex,
+    maxes: Vec<T>, // exactly one per existing list.
+    //index: JenksIndex,
     load_factor: usize,
+    len: usize,
+}
+
+fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
+    match vec.binary_search(&val) {
+        Ok(idx) | Err(idx) => vec.insert(idx, val)
+    }
 }
 
 /// The sorted list you've all been waiting for.
@@ -32,56 +36,65 @@ struct SortedList<T: Ord> {
 /// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
 impl<'a, T: Ord> SortedList<T> {
     fn update_jenks_index(&mut self) {
-        self.index = JenksIndex::from_value_lists(&self.value_lists);
+        //self.index = JenksIndex::from_value_lists(&self.value_lists);
     }
 
     pub fn contains(&self, val: &T) -> bool {
-        // TODO make this faster?
-        self.value_lists.iter().any(|list|
-                                    list.last().map(|max| max >= val && list.contains(val))
-                                    .unwrap_or(false))
+        assert!(!self.value_lists.is_empty());
+        assert_eq!(self.value_lists.len(), self.maxes.len());
+
+        match self.maxes.binary_search(val) {
+            Ok(_) => true,
+            Err(idx) => {
+                self.value_lists[idx].binary_search(val).is_ok()
+            },
+        }
     }
 
-    fn insert(&mut self, new_val: T) {
-        assert!(!self.value_lists.is_empty());
+     fn insert(&mut self, new_val: T) {
+         assert!(!self.value_lists.is_empty());
+         if (self.len() > 0) {
+             assert!(!self.maxes.is_empty())
+         }
 
-        let list_idx;
-        {
-            let iter = self.value_lists.iter_mut().enumerate();
-
-            let (idx, list) =
-                find_or_last(iter, |&(_, ref list)|
-                             list.last().map(|list_max| list_max >= &new_val).unwrap_or(false))
-                .unwrap(); // unwrap is safe because the list is never empty.
-
-            list_idx = idx;
-
-            insort_left(list, new_val);
-        }
-        self.expand(list_idx);
+         match self.maxes.binary_search(&new_val) {
+             Ok(idx) | Err(idx) => {
+                insert_sorted(&mut self.value_lists[idx], new_val);
+                 self.expand(idx);
+             }
+         }
     }
 
     /// Splits sublists that are more than double the load level.
     /// Updates the index when the sublist length is less than double the load
     /// level. This requires incrementing the nodes in a traversal from the
     /// leaf node to the root. For an example traversal see self._loc.
-    fn expand(&mut self, pos: usize) {
-        if self.value_lists[pos].len() > self.load_factor * 2 {
-            self.split_sublist(pos);
-            // TODO: update index better.
-            self.update_jenks_index();
-        } else {
-            // TODO
-            //self.index.increment_above_leaf(pos);
-            self.update_jenks_index();
+    #[allow(unused_variables)]
+    fn expand(&mut self, idx: usize) {
+        self.len += 1;
+        if self.value_lists.len() < self.maxes.len() {
+            self.value_lists.push(vec![]);
         }
+    //    if self.value_lists[pos].len() > self.load_factor * 2 {
+    //        self.split_sublist(pos);
+    //        // TODO: update index better.
+    //        self.update_jenks_index();
+    //    } else {
+    //        // TODO
+    //        //self.index.increment_above_leaf(pos);
+    //        self.update_jenks_index();
+    //    }
+    }
+
+    fn removed_from(&mut self, pos: usize) {
+        self.len -= 1;
     }
 
     /// Assumes the list is not empty.
-    fn split_sublist(&mut self, pos: usize) {
-        let new_list = self.value_lists[pos].split_off(self.load_factor);
-        self.value_lists.insert(pos + 1, new_list);
-    }
+    //fn split_sublist(&mut self, pos: usize) {
+    //    let new_list = self.value_lists[pos].split_off(self.load_factor);
+    //    self.value_lists.insert(pos + 1, new_list);
+    //}
 
     pub fn first(&self) -> Option<&T> {
         self.value_lists.first().and_then(|l| l.first())
@@ -89,11 +102,11 @@ impl<'a, T: Ord> SortedList<T> {
 
     /// Returns a reference to the last (maximum) value in the list.
     pub fn last(&mut self) -> Option<&T> {
-        self.value_lists.last().and_then(|l| l.last())
+        self.maxes.last()
     }
 
     pub fn last_mut(&mut self) -> Option<&mut T> {
-        self.value_lists.last_mut().and_then(|l| l.last_mut())
+        self.maxes.last_mut()
     }
 
     pub fn pop_first(&mut self) -> Option<T> {
@@ -102,19 +115,21 @@ impl<'a, T: Ord> SortedList<T> {
         }
 
         let rv = Some(self.value_lists.first_mut().unwrap().remove(0));
-        self.update_jenks_index();
+        self.removed_from(0);
         rv
     }
 
     pub fn pop_last(&mut self) -> Option<T> {
         let rv = self.value_lists.last_mut().and_then(|l| l.pop());
         // TODO: expand?
-        self.update_jenks_index();
+        let last_idx = self.value_lists.len() - 1;
+        self.removed_from(last_idx);
         rv
     }
 
     pub fn len(&self) -> usize {
-        return self.index.head();
+        //return self.index.head();
+        return self.len;
     }
 }
 
@@ -217,15 +232,17 @@ impl<'a, T: Ord> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
             value_lists: vec![vec![]],
-            index: JenksIndex { index: vec![0] },
+            maxes: vec![],
+            //index: JenksIndex { index: vec![0] },
             load_factor: DEFAULT_LOAD_FACTOR,
+            len: 0,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::SortedList;
     #[test]
     pub fn it_builds() {
         let default = SortedList::<u8>::default();
@@ -233,20 +250,21 @@ mod tests {
         assert!(default.value_lists[0].len() == 0);
     }
 
-    #[test]
-    pub fn test_calculate_jenks_index() {
-        let list: SortedList<u8> = SortedList::default();
-        let index = JenksIndex::from_value_lists(&list.value_lists);
-        assert_eq!(index, JenksIndex { index: vec![0] });
+    //#[test]
+    //pub fn test_calculate_jenks_index() {
+    //    let list: SortedList<u8> = SortedList::default();
+    //    let index = JenksIndex::from_value_lists(&list.value_lists);
+    //    assert_eq!(index, JenksIndex { index: vec![0] });
 
-        let list: SortedList<u64> = SortedList {
-            value_lists: vec![vec![1, 2, 3, 4, 5]],
-            index: JenksIndex { index: vec![5] },
-            load_factor: DEFAULT_LOAD_FACTOR,
-        };
-        let index = JenksIndex::from_value_lists(&list.value_lists);
-        assert_eq!(JenksIndex { index: vec![5] }, index);
-    }
+    //    let list: SortedList<u64> = SortedList {
+    //        value_lists: vec![vec![1, 2, 3, 4, 5]],
+    //        maxes: vec![6],
+    //        index: JenksIndex { index: vec![5] },
+    //        load_factor: DEFAULT_LOAD_FACTOR,
+    //    };
+    //    let index = JenksIndex::from_value_lists(&list.value_lists);
+    //    assert_eq!(JenksIndex { index: vec![5] }, index);
+    //}
 
     #[test]
     pub fn basic_test() {
@@ -293,65 +311,51 @@ mod tests {
         assert_eq!(&20, list.last_mut().unwrap());
     }
 }
-
-// returns None iff the first call to iter returns None.
-fn find_or_last<T, I, P>(iter: I, mut predicate: P) -> Option<T>
-where P: FnMut(&T) -> bool, I: Iterator<Item = T> {
-    let mut state = None;
-
-    for x in iter {
-        if predicate(&x) { return Some(x) }
-        state = Some(x)
-    }
-    state
-}
-
-
-
-#[cfg(test)]
-mod quickcheck_tests {
-    use super::SortedList;
-
-    fn prop_from_iter_sorted<T: Ord + Clone>(list: Vec<T>) -> bool {
-        let mut list = list.clone(); // can't get mutable values from quickcheck.
-        list.sort();
-        let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
-        let from_collection = {
-            let mut collection = SortedList::default();
-            for x in list.iter() { collection.insert(x.clone()); }
-            collection
-        };
-
-        from_iter.iter().eq(list.iter()) && from_collection.iter().eq(list.iter())
-    }
-
-    quickcheck! {
-        fn prop_from_iter_sorted_u8(list: Vec<u8>) -> bool {
-            prop_from_iter_sorted(list)
-        }
-
-        fn prop_from_iter_sorted_u16(list: Vec<u16>) -> bool {
-            prop_from_iter_sorted(list)
-        }
-
-        fn prop_from_iter_sorted_u32(list: Vec<u32>) -> bool {
-            prop_from_iter_sorted(list)
-        }
-
-        fn prop_from_iter_sorted_u64(list: Vec<u64>) -> bool {
-            prop_from_iter_sorted(list)
-        }
-
-        fn prop_from_iter_sorted_i8(list: Vec<i8>) -> bool {
-            prop_from_iter_sorted(list)
-        }
-
-        fn prop_from_iter_sorted_i32(list: Vec<i32>) -> bool {
-            prop_from_iter_sorted(list)
-        }
-
-        fn prop_from_iter_sorted_i64(list: Vec<i64>) -> bool {
-            prop_from_iter_sorted(list)
-        }
-    }
-}
+//
+//#[cfg(test)]
+//mod quickcheck_tests {
+//    use super::SortedList;
+//
+//    fn prop_from_iter_sorted<T: Ord>(list: Vec<T>) -> bool {
+//        let mut list = list.clone(); // can't get mutable values from quickcheck.
+//        list.sort();
+//        let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
+//        let from_collection = {
+//            let mut collection = SortedList::default();
+//            for x in list.iter() { collection.insert(x.clone()); }
+//            collection
+//        };
+//
+//        from_iter.iter().eq(list.iter()) && from_collection.iter().eq(list.iter())
+//    }
+//
+//    quickcheck! {
+//        fn prop_from_iter_sorted_u8(list: Vec<u8>) -> bool {
+//            prop_from_iter_sorted(list)
+//        }
+//
+//        fn prop_from_iter_sorted_u16(list: Vec<u16>) -> bool {
+//            prop_from_iter_sorted(list)
+//        }
+//
+//        fn prop_from_iter_sorted_u32(list: Vec<u32>) -> bool {
+//            prop_from_iter_sorted(list)
+//        }
+//
+//        fn prop_from_iter_sorted_u64(list: Vec<u64>) -> bool {
+//            prop_from_iter_sorted(list)
+//        }
+//
+//        fn prop_from_iter_sorted_i8(list: Vec<i8>) -> bool {
+//            prop_from_iter_sorted(list)
+//        }
+//
+//        fn prop_from_iter_sorted_i32(list: Vec<i32>) -> bool {
+//            prop_from_iter_sorted(list)
+//        }
+//
+//        fn prop_from_iter_sorted_i64(list: Vec<i64>) -> bool {
+//            prop_from_iter_sorted(list)
+//        }
+//    }
+//}

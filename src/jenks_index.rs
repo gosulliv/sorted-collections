@@ -33,7 +33,7 @@
 pub struct JenksIndex {
     pub index: Vec<usize>,
 }
-
+#[allow(dead_code)]
 impl JenksIndex {
     /// Calculate the "Jenks Index" of the set, which is basically a heap-like lookup tree.
     ///
@@ -146,6 +146,7 @@ impl JenksIndex {
     //    }
 }
 
+#[allow(dead_code)] // TODO
 fn pair_sum(a: &Vec<usize>) -> Vec<usize> {
     a.chunks(2).map(|pair| pair.iter().fold(0, |x, y| x + y)).collect()
 }
