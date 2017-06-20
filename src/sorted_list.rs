@@ -9,24 +9,86 @@
 
 use std::default::Default;
 use std::iter::FromIterator;
+use std::cmp::Ordering;
+use std::mem;
 
 /// if the list size grows greater than the load factor, we split it.
 /// If the list size shrinks below the load factor, we join two lists.
 const DEFAULT_LOAD_FACTOR: usize = 1000;
-
-#[derive(Debug)]
-pub struct SortedList<T: Ord> {
-    value_lists: Vec<Vec<T>>, // There is always at least one vec in this list.
-    maxes: Vec<T>, // exactly one per existing list.
-    //index: JenksIndex,
-    load_factor: usize,
-    len: usize,
-}
+const MINIMUM_LOAD_FACTOR: usize = 4;
 
 fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
     match vec.binary_search(&val) {
         Ok(idx) | Err(idx) => vec.insert(idx, val)
     }
+}
+
+fn insert_list<T>(list_list: &mut Vec<ListWithSeparateMax<T>>, val: T) {
+    let list_idx = match list_list.binary_search_by(|list_with_max| {
+        x.cmp(&list_with_max.max)
+    }) {
+        Ok(idx) | Err(idx) => idx
+    };
+    list_list[list_idx].insert(val)
+}
+
+/// Always has at least the max set.
+/// It is a logic error to remove the one remaining element. Take it out consuming the structure instead.
+#[derive(Debug)]
+struct ListWithSeparateMax<T>{
+    vec: Vec<T>,
+    max: T,
+}
+
+impl<T: Ord> ListWithSeparateMax<T> {
+    fn new(x: T, size_hint: usize) -> ListWithSeparateMax<T> {
+        ListWithSeparateMax{ vec: vec::with_capacity(size_hint), max: x }
+    }
+
+    fn max(&self) -> &T {
+        &self.max
+    }
+
+    fn insert(&mut self, x: T) {
+        let x = if self.max < x { mem::replace(&mut self.max, x) } else { x };
+        insert_sorted(&mut self.vec, x)
+    }
+
+    fn contains(&self, x: &T) -> bool {
+        &self.max == x ||
+            self.vec.binary_search(x).is_ok()
+    }
+
+    fn binary_search(&self, x: &T) -> Result<usize, usize> {
+        match x.cmp(&self.max) {
+            Ordering::Equal => Ok(self.len() - 1),
+            Ordering::Greater => Err(self.len()),
+            Ordering::Less => self.vec.binary_search(x),
+        }
+    }
+
+    fn remove(&mut self, idx: usize) -> T {
+        assert!(idx < self.len());
+        assert!(self.len() > 1);
+
+        if idx == self.vec.len() {
+            mem::replace(&mut self.max, self.vec.pop().unwrap())
+        } else {
+            self.vec.remove(idx)
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.vec.len() + 1
+    }
+}
+
+#[derive(Debug)]
+pub struct SortedList<T: Ord> {
+    lists: Vec<ListWithSeparateMax<T>>, // There is always at least one element in this list.
+    //index: JenksIndex,
+    load_factor: usize,
+    len: usize,
 }
 
 /// The sorted list you've all been waiting for.
@@ -35,78 +97,86 @@ fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
 /// to any other item, as determined by the `Ord` trait, changes while it is in the heap. This is
 /// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
 impl<'a, T: Ord> SortedList<T> {
-    fn update_jenks_index(&mut self) {
-        //self.index = JenksIndex::from_value_lists(&self.value_lists);
-    }
-
     pub fn contains(&self, val: &T) -> bool {
-        assert!(!self.value_lists.is_empty());
-        assert_eq!(self.value_lists.len(), self.maxes.len());
+        assert!(!self.lists.is_empty());
+        assert_eq!(self.lists.len(), self.maxes.len());
 
-        match self.maxes.binary_search(val) {
-            Ok(_) => true,
-            Err(idx) => {
-                self.value_lists[idx].binary_search(val).is_ok()
-            },
-        }
+        self.lists.contains(val)
     }
 
      fn insert(&mut self, new_val: T) {
-         assert!(!self.value_lists.is_empty());
-         if (self.len() > 0) {
-             assert!(!self.maxes.is_empty())
-         }
-
-         match self.maxes.binary_search(&new_val) {
-             Ok(idx) | Err(idx) => {
-                insert_sorted(&mut self.value_lists[idx], new_val);
-                 self.expand(idx);
-             }
-         }
+         insert_list(&mut self.lists, new_val)
     }
 
     /// Splits sublists that are more than double the load level.
     /// Updates the index when the sublist length is less than double the load
     /// level. This requires incrementing the nodes in a traversal from the
     /// leaf node to the root. For an example traversal see self._loc.
-    #[allow(unused_variables)]
     fn expand(&mut self, idx: usize) {
-        self.len += 1;
-        if self.value_lists.len() < self.maxes.len() {
-            self.value_lists.push(vec![]);
+        // >= because otherwise contract can fail... better solution for this?
+        if lists[idx].len() >= 2 * self.load_factor {
+            actual_expand(idx)
         }
-    //    if self.value_lists[pos].len() > self.load_factor * 2 {
-    //        self.split_sublist(pos);
-    //        // TODO: update index better.
-    //        self.update_jenks_index();
-    //    } else {
-    //        // TODO
-    //        //self.index.increment_above_leaf(pos);
-    //        self.update_jenks_index();
-    //    }
     }
 
-    fn removed_from(&mut self, pos: usize) {
-        self.len -= 1;
+    fn actual_expand(&mut self, idx: usize) {
+        let split_point = the_list.len() / 2;
+        let new_list = the_list.list.split_off(split_point); // high half, except max.
+        self.lists.insert(idx, ListWithSeparateMax{
+            list: new_list,
+            max: mem::replace(the_list.max, the_list.pop()),
+        });
+    }
+
+
+    fn contract(&mut self, idx: usize) {
+        if self.lists[idx].len() < self.load_factor / 2 {
+            actual_contract(idx)
+        }
+    }
+
+    // FIXME
+    fn actual_contract(&mut self, idx: usize) {
+        let left_idx = idx - 1;
+        let right_idx = idx + 1;
+        let left_len = self[left_idx].len();
+        let right_len = self[right_idx].len();
+
+        if left_len + right_len + self[idx].len() > 2 * load_factor {
+            return;
+        } else {
+            let mut old_list_iter = self.lists.remove(idx).into_iter();
+
+            let left_list = &mut self.lists[left_idx];
+            let right_list = &mut self.lists[right_idx - 1];
+
+            for x in old_list_iter {
+                if (left_list.len() < self.load_factor * 2) {
+                    left_list.append(x);
+                } else {
+                    right_list.push(x);
+                }
+            }
+        }
     }
 
     /// Assumes the list is not empty.
     //fn split_sublist(&mut self, pos: usize) {
-    //    let new_list = self.value_lists[pos].split_off(self.load_factor);
-    //    self.value_lists.insert(pos + 1, new_list);
+    //    let new_list = self.lists[pos].split_off(self.load_factor);
+    //    self.lists.insert(pos + 1, new_list);
     //}
 
     pub fn first(&self) -> Option<&T> {
-        self.value_lists.first().and_then(|l| l.first())
+        self.lists.first()
     }
 
     /// Returns a reference to the last (maximum) value in the list.
     pub fn last(&mut self) -> Option<&T> {
-        self.maxes.last()
+        self.lists.last()
     }
 
     pub fn last_mut(&mut self) -> Option<&mut T> {
-        self.maxes.last_mut()
+        self.lists.last_mut()
     }
 
     pub fn pop_first(&mut self) -> Option<T> {
@@ -114,15 +184,16 @@ impl<'a, T: Ord> SortedList<T> {
             return None
         }
 
-        let rv = Some(self.value_lists.first_mut().unwrap().remove(0));
+        self.lists[0].pop_first()
+        let rv = Some(self.lists.first_mut().unwrap().remove(0));
         self.removed_from(0);
         rv
     }
 
     pub fn pop_last(&mut self) -> Option<T> {
-        let rv = self.value_lists.last_mut().and_then(|l| l.pop());
+        let rv = self.lists.last_mut().and_then(|l| l.pop());
         // TODO: expand?
-        let last_idx = self.value_lists.len() - 1;
+        let last_idx = self.lists.len() - 1;
         self.removed_from(last_idx);
         rv
     }
@@ -140,7 +211,7 @@ pub struct Iter<'a, T: 'a> {
 
 impl<'a, T: Ord> SortedList<T> {
     pub fn iter(&self) -> Iter<T> {
-        let mut ll_iter = self.value_lists.iter();
+        let mut ll_iter = self.lists.iter();
         let cl_iter = ll_iter.next().unwrap().iter();
         Iter {
             list_list_iter: ll_iter,
@@ -205,7 +276,7 @@ impl<'a, T: Ord> IntoIterator for SortedList<T> {
 
     fn into_iter(self) -> IntoIter<T> {
         IntoIter {
-            list_list_iter: self.value_lists.into_iter(),
+            list_list_iter: self.lists.into_iter(),
             curr_list_iter: vec![].into_iter(),
         }
     }
@@ -231,7 +302,7 @@ impl<'a, T: Ord> FromIterator<T> for SortedList<T> {
 impl<'a, T: Ord> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
-            value_lists: vec![vec![]],
+            lists: vec![vec![]],
             maxes: vec![],
             //index: JenksIndex { index: vec![0] },
             load_factor: DEFAULT_LOAD_FACTOR,
@@ -246,23 +317,23 @@ mod tests {
     #[test]
     pub fn it_builds() {
         let default = SortedList::<u8>::default();
-        assert!(default.value_lists.len() == 1);
-        assert!(default.value_lists[0].len() == 0);
+        assert!(default.lists.len() == 1);
+        assert!(default.lists[0].len() == 0);
     }
 
     //#[test]
     //pub fn test_calculate_jenks_index() {
     //    let list: SortedList<u8> = SortedList::default();
-    //    let index = JenksIndex::from_value_lists(&list.value_lists);
+    //    let index = JenksIndex::from_lists(&list.lists);
     //    assert_eq!(index, JenksIndex { index: vec![0] });
 
     //    let list: SortedList<u64> = SortedList {
-    //        value_lists: vec![vec![1, 2, 3, 4, 5]],
+    //        lists: vec![vec![1, 2, 3, 4, 5]],
     //        maxes: vec![6],
     //        index: JenksIndex { index: vec![5] },
     //        load_factor: DEFAULT_LOAD_FACTOR,
     //    };
-    //    let index = JenksIndex::from_value_lists(&list.value_lists);
+    //    let index = JenksIndex::from_lists(&list.lists);
     //    assert_eq!(JenksIndex { index: vec![5] }, index);
     //}
 
@@ -297,8 +368,8 @@ mod tests {
 
         assert!(!list.contains(&3));
 
-        assert_eq!(1, list.value_lists.len());
-        assert_eq!(0, list.value_lists[0].len());
+        assert_eq!(1, list.lists.len());
+        assert_eq!(0, list.lists[0].len());
 
         assert_eq!(0, list.len());
 
