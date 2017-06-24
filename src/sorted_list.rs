@@ -9,14 +9,10 @@
 
 use std::default::Default;
 use std::iter::FromIterator;
-use std::cmp::Ordering;
-use std::mem;
-use std;
 
 /// if the list size grows greater than the load factor, we split it.
 /// If the list size shrinks below the load factor, we join two lists.
 const DEFAULT_LOAD_FACTOR: usize = 1000;
-const MINIMUM_LOAD_FACTOR: usize = 4;
 
 fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
     match vec.binary_search(&val) {
@@ -25,9 +21,11 @@ fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
 }
 
 /// NOT generic, does not handle empty sublists except for a single empty list.
-fn insert_list<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) {
+/// returns the index of the list that was inserted into.
+fn insert_list<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usize {
     if list_list.len() == 1 && list_list[0].len() == 0 {
-        return list_list[0].push(val);
+        list_list[0].push(val);
+        return 0;
     }
     let list_idx = match list_list
         .binary_search_by(|list| {
@@ -36,7 +34,8 @@ fn insert_list<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) {
             Ok(idx) | Err(idx) => idx
         };
 
-    insert_sorted(&mut list_list[list_idx], val)
+    insert_sorted(&mut list_list[list_idx], val);
+    list_idx
 }
 
 #[derive(Debug)]
@@ -59,8 +58,9 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
      fn insert(&mut self, new_val: T) {
-         insert_list(&mut self.lists, new_val);
+         let idx_changed = insert_list(&mut self.lists, new_val);
          self.len += 1;
+         self.expand(idx_changed);
     }
 
     /// Splits sublists that are more than double the load level.
@@ -80,7 +80,7 @@ impl<'a, T: Ord> SortedList<T> {
             let split_point = the_list.len() / 2;
             the_list.split_off(split_point)
         };
-        
+
         self.lists.insert(idx + 1, new_list);
     }
 
@@ -92,17 +92,39 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
     // TODO: this can make lists that are too big.
+    /// Contracts with the nearest list.
+    /// Example:
+    /// ```
+    /// let list = SortedList<u32> {
+    ///   lists: Vec![vec![-6,-5,-3],
+    ///               vec![1,2,3,4,5],
+    ///               vec![99,100],],
+    ///   load_factor: 2,
+    ///   len: 10,
+    ///   }
+    ///   let new_lists = list.actual_contract(1).lists;
+    ///   assert_eq!(new_lists, vec![vec![-6,-5,-3],
+    ///                              vec![1,2,3,4,5,99,100],]);
+    ///  ```
     fn actual_contract(&mut self, idx: usize) {
         assert!(self.len() > 1);
         let (low_idx, high_idx) =
             if idx == 0 {
                 (0, 1)
-            } else if idx == self.lists.len() { 
+            } else if idx == self.lists.len() {
                 (self.lists.len() - 2, self.lists.len() - 1)
             } else {
-                *[(idx - 1, idx), (idx, idx + 1)].into_iter()
-                    .min_by_key(|a| a.0)
-                    .unwrap()
+                let other_list: usize =
+                    if self.lists[idx - 1].len() < self.lists[idx + 1].len() {
+                        idx - 1
+                    } else {
+                        idx + 1
+                    };
+                if idx < other_list {
+                    (idx, other_list)
+                } else {
+                    (other_list, idx)
+                }
             };
 
         let mut removed_list = self.lists.remove(high_idx);
@@ -298,51 +320,51 @@ mod tests {
         assert_eq!(&20, list.last_mut().unwrap());
     }
 }
-//
-//#[cfg(test)]
-//mod quickcheck_tests {
-//    use super::SortedList;
-//
-//    fn prop_from_iter_sorted<T: Ord>(list: Vec<T>) -> bool {
-//        let mut list = list.clone(); // can't get mutable values from quickcheck.
-//        list.sort();
-//        let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
-//        let from_collection = {
-//            let mut collection = SortedList::default();
-//            for x in list.iter() { collection.insert(x.clone()); }
-//            collection
-//        };
-//
-//        from_iter.iter().eq(list.iter()) && from_collection.iter().eq(list.iter())
-//    }
-//
-//    quickcheck! {
-//        fn prop_from_iter_sorted_u8(list: Vec<u8>) -> bool {
-//            prop_from_iter_sorted(list)
-//        }
-//
-//        fn prop_from_iter_sorted_u16(list: Vec<u16>) -> bool {
-//            prop_from_iter_sorted(list)
-//        }
-//
-//        fn prop_from_iter_sorted_u32(list: Vec<u32>) -> bool {
-//            prop_from_iter_sorted(list)
-//        }
-//
-//        fn prop_from_iter_sorted_u64(list: Vec<u64>) -> bool {
-//            prop_from_iter_sorted(list)
-//        }
-//
-//        fn prop_from_iter_sorted_i8(list: Vec<i8>) -> bool {
-//            prop_from_iter_sorted(list)
-//        }
-//
-//        fn prop_from_iter_sorted_i32(list: Vec<i32>) -> bool {
-//            prop_from_iter_sorted(list)
-//        }
-//
-//        fn prop_from_iter_sorted_i64(list: Vec<i64>) -> bool {
-//            prop_from_iter_sorted(list)
-//        }
-//    }
-//}
+
+#[cfg(test)]
+mod quickcheck_tests {
+    use super::SortedList;
+
+    fn prop_from_iter_sorted<T: Ord + Clone>(list: Vec<T>) -> bool {
+        let mut list = list.clone(); // can't get mutable values from quickcheck.
+        list.sort();
+        let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
+        let from_collection = {
+            let mut collection = SortedList::default();
+            for x in list.iter() { collection.insert(x.clone()); }
+            collection
+        };
+
+        from_iter.iter().eq(list.iter()) && from_collection.iter().eq(list.iter())
+    }
+
+    quickcheck! {
+        fn prop_from_iter_sorted_u8(list: Vec<u8>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_u16(list: Vec<u16>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_u32(list: Vec<u32>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_u64(list: Vec<u64>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_i8(list: Vec<i8>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_i32(list: Vec<i32>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+
+        fn prop_from_iter_sorted_i64(list: Vec<i64>) -> bool {
+            prop_from_iter_sorted(list)
+        }
+    }
+}
