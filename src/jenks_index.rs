@@ -53,15 +53,17 @@ impl JenksIndex {
     ///
     pub fn from_value_lists<T>(value_lists: &Vec<Vec<T>>) -> JenksIndex {
         let lengths = value_lists.iter().map(|l| l.len()).collect();
-        // triangular number... 1+2+3+4+...+n = n*n/2
-        //let mut index = Vec::with_capacity(lengths.len().pow(2)/2);
+
         let mut steps: Vec<Vec<usize>> = Vec::with_capacity(value_lists.len()); // n/2 + n/4 + ...
         steps.push(lengths);
+
         while steps.last().unwrap().len() > 1 {
             let next = pair_sum(steps.last().unwrap());
             steps.push(next);
         }
+
         steps.reverse();
+
         JenksIndex {
             index: steps.iter()
             .flat_map(|x| x.iter())

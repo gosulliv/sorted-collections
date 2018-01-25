@@ -76,7 +76,7 @@ impl<'a, T: Ord> SortedList<T> {
 
     fn actual_expand(&mut self, idx: usize) {
         let new_list = {
-            let mut the_list = &mut self.lists[idx];
+            let the_list = &mut self.lists[idx];
             let split_point = the_list.len() / 2;
             the_list.split_off(split_point)
         };
@@ -319,6 +319,7 @@ mod tests {
         list.insert(20);
         assert_eq!(&20, list.last_mut().unwrap());
     }
+
 }
 
 #[cfg(test)]
