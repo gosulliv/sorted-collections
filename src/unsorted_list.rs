@@ -1,18 +1,18 @@
 use std::default::Default;
 use std::iter::FromIterator;
-use std::ops::{Index,IndexMut};
+use std::ops::{Index, IndexMut};
 
 const DEFAULT_LOAD_FACTOR: usize = 1000;
 
 #[derive(Debug)]
 pub struct UnsortedList<T> {
-    lists: Vec<Vec<T>>, // There is always at least one element in this list.
+    lists: Vec<Vec<T>>, // There is always at least one element in the outer list.
     load_factor: usize,
     len: usize,
 }
 
 impl<T> UnsortedList<T> {
-    pub fn insert(&mut self, index: usize, element: T ) {
+    pub fn insert(&mut self, index: usize, element: T) {
         let mut sublist_index = index;
         let mut list_index = 0;
 
@@ -27,7 +27,6 @@ impl<T> UnsortedList<T> {
         self.checked_expand(list_index);
     }
 
-
     /// Splits sublists that are more than double the load level.
     /// Updates the index when the sublist length is less than double the load
     /// level. This requires incrementing the nodes in a traversal from the
@@ -38,7 +37,6 @@ impl<T> UnsortedList<T> {
             self.do_expand(idx)
         }
     }
-
 
     fn do_expand(&mut self, idx: usize) {
         let new_list = {
@@ -52,49 +50,36 @@ impl<T> UnsortedList<T> {
 
     // TODO: this can make lists that are too big.
     fn checked_contract(&mut self, idx: usize) {
-        if self.lists.len() > 1 &&
-            self.lists[idx].len() < self.load_factor / 2 {
-                self.actual_contract(idx)
-            }
+        if self.lists.len() > 1 && self.lists[idx].len() < self.load_factor / 2 {
+            self.actual_contract(idx)
+        }
     }
 
     /// Contracts with the nearest list.
-    /// Example:
-    /// ```
-    /// let list = UnsortedList<u32> {
-    ///   lists: Vec![vec![-6,-5,-3],
-    ///               vec![1,2,3,4,5],
-    ///               vec![99,100],],
-    ///   load_factor: 2,
-    ///   len: 10,
-    ///   }
-    ///   let new_lists = list.actual_contract(1).lists;
-    ///   assert_eq!(new_lists, vec![vec![-6,-5,-3],
-    ///                              vec![1,2,3,4,5,99,100],]);
-    ///  ```
     fn actual_contract(&mut self, idx: usize) {
         assert!(self.len() > 1);
-        let (low_idx, high_idx) =
-            if idx == 0 {
-                (0, 1)
-            } else if idx == self.lists.len() {
-                (self.lists.len() - 2, self.lists.len() - 1)
-            } else {
-                let other_list: usize =
-                    if self.lists[idx - 1].len() < self.lists[idx + 1].len() {
-                        idx - 1
-                    } else {
-                        idx + 1
-                    };
-                if idx < other_list {
-                    (idx, other_list)
-                } else {
-                    (other_list, idx)
-                }
-            };
-
+        let (low_idx, high_idx) = self.contract_idx(idx);
         let mut removed_list = self.lists.remove(high_idx);
         self.lists[low_idx].append(&mut removed_list);
+    }
+
+    fn contract_idx(&self, idx: usize) -> (usize, usize) {
+        if idx == 0 {
+            (0, 1)
+        } else if idx == self.lists.len() {
+            (self.lists.len() - 2, self.lists.len() - 1)
+        } else {
+            let other_list: usize = if self.lists[idx - 1].len() < self.lists[idx + 1].len() {
+                idx - 1
+            } else {
+                idx + 1
+            };
+            if idx < other_list {
+                (idx, other_list)
+            } else {
+                (other_list, idx)
+            }
+        }
     }
 
     pub fn first(&self) -> Option<&T> {
@@ -127,8 +112,8 @@ impl<T> UnsortedList<T> {
     pub fn push(&mut self, element: T) {
         self.lists.last_mut().unwrap().push(element);
         self.len += 1;
-let len = self.lists.len();
-// FIXME catch with test?
+        let len = self.lists.len();
+        // FIXME catch with test?
         self.checked_contract(len);
     }
 
@@ -176,8 +161,6 @@ impl<T: PartialEq> UnsortedList<T> {
     }
 }
 
-
-
 pub struct Iter<'a, T: 'a> {
     list_list_iter: ::std::slice::Iter<'a, Vec<T>>,
     curr_list_iter: ::std::slice::Iter<'a, T>,
@@ -214,11 +197,12 @@ impl<T: Ord> Iterator for IntoIter<T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (ll_min, ll_max) = self.list_list_iter.size_hint();
         let (cl_min, cl_max) = self.curr_list_iter.size_hint();
-        (ll_min + cl_min,
-         match (ll_max, cl_max) {
-             (Some(x), Some(y)) => Some(x + y),
-             _ => None,
-         }
+        (
+            ll_min + cl_min,
+            match (ll_max, cl_max) {
+                (Some(x), Some(y)) => Some(x + y),
+                _ => None,
+            },
         )
     }
 }
@@ -251,15 +235,16 @@ impl<'a, T: Ord> Default for UnsortedList<T> {
 /// Actually may not be that bad based on the performance analysis that's todo
 impl<'a, T: Ord> FromIterator<T> for UnsortedList<T> {
     fn from_iter<F>(iter: F) -> Self
-        where F: IntoIterator<Item = T>
-        {
-            let mut list = Self::default();
-            let mut iter = iter.into_iter();
-            while let Some(x) = iter.next() {
-                list.push(x);
-            }
-            list
+    where
+        F: IntoIterator<Item = T>,
+    {
+        let mut list = Self::default();
+        let mut iter = iter.into_iter();
+        while let Some(x) = iter.next() {
+            list.push(x);
         }
+        list
+    }
 }
 
 impl<'a, T: Ord> Index<usize> for UnsortedList<T> {
@@ -282,7 +267,7 @@ mod tests {
     use super::UnsortedList;
     #[test]
     fn empty() {
-        let mut list : UnsortedList<i32> = UnsortedList::default();
+        let mut list: UnsortedList<i32> = UnsortedList::default();
         assert_eq!(list.len(), 0);
         assert_eq!(list.first(), None);
         assert_eq!(list.first_mut(), None);
@@ -292,12 +277,13 @@ mod tests {
         assert_eq!(list.pop_first(), None);
     }
 
+    #[test]
     fn index() {
         use unsorted_list::UnsortedList;
         let mut list = UnsortedList::default();
-        list.insert(0,100);
-        list.insert(0,10);
-        list.insert(1,1);
+        list.insert(0, 100);
+        list.insert(0, 10);
+        list.insert(1, 1);
         assert_eq!(list[0], 10);
         assert_eq!(list[1], 1);
         assert_eq!(list[2], 100);
@@ -306,12 +292,26 @@ mod tests {
         assert_eq!(list.pop(), Some(10));
     }
 
+    #[test]
+    fn test_actual_contract() {
+        let mut list = UnsortedList::<i32> {
+            lists: vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5], vec![99, 100]],
+            load_factor: 2,
+            len: 10,
+        };
+        list.actual_contract(1);
+        assert_eq!(
+            list.lists,
+            vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5, 99, 100]]
+        );
+    }
+
     quickcheck! {
         fn first(element: u8) -> bool {
             let mut list: UnsortedList<u8> = Some(element).into_iter().collect();
             list.push(element);
 
-            list.first() == Some(&element) 
+            list.first() == Some(&element)
         }
 
         fn first_mut(element: u8) -> bool {
@@ -323,7 +323,7 @@ mod tests {
 
         fn last(element: u8) -> bool {
             let mut list: UnsortedList<u8> = Some(element).into_iter().collect();
-            list.last() == Some(&element) 
+            list.last() == Some(&element)
         }
 
         fn last_mut(element: u8) -> bool {

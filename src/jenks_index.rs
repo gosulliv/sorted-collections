@@ -1,4 +1,3 @@
-
 /// A flattened tree structure, represented by a Vec of lengths.
 ///
 /// We want to make index methods like leftChild()
@@ -29,7 +28,7 @@
 /// and go to the right.
 ///
 /// In either case, continue until we're at a leaf node, then index into that array by what's left.
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct JenksIndex {
     pub index: Vec<usize>,
 }
@@ -150,7 +149,9 @@ impl JenksIndex {
 
 #[allow(dead_code)] // TODO
 fn pair_sum(a: &Vec<usize>) -> Vec<usize> {
-    a.chunks(2).map(|pair| pair.iter().fold(0, |x, y| x + y)).collect()
+    a.chunks(2)
+        .map(|pair| pair.iter().fold(0, |x, y| x + y))
+        .collect()
 }
 
 #[cfg(test)]
@@ -205,7 +206,9 @@ mod tests {
         assert_eq!(single_index.left_child(0), None);
         assert_eq!(single_index.right_child(0), None);
 
-        let several_index = JenksIndex { index: vec![3, 1, 2] };
+        let several_index = JenksIndex {
+            index: vec![3, 1, 2],
+        };
         assert_eq!(several_index.left_child(0), Some(1));
     }
 
@@ -254,7 +257,9 @@ mod tests {
         assert_eq!(empty_index.right_child(0), None);
         assert_eq!(single_index.right_child(0), None);
 
-        let several_index = JenksIndex { index: vec![3, 1, 2] };
+        let several_index = JenksIndex {
+            index: vec![3, 1, 2],
+        };
         assert_eq!(several_index.right_child(0), Some(2));
     }
 

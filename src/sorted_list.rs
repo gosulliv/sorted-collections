@@ -14,25 +14,25 @@ use std::iter::FromIterator;
 /// If the list size shrinks below the load factor, we join two lists.
 const DEFAULT_LOAD_FACTOR: usize = 1000;
 
+/// Inserts into a list while maintaining a preexisting ordering.
 fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
     match vec.binary_search(&val) {
-        Ok(idx) | Err(idx) => vec.insert(idx, val)
+        Ok(idx) | Err(idx) => vec.insert(idx, val),
     }
 }
 
-/// NOT generic, does not handle empty sublists except for a single empty list.
+/// Inserts a value into a list of lists, as in SortedList.
+///
+/// Does not handle empty sublists except for a single empty list.
 /// returns the index of the list that was inserted into.
-fn insert_list<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usize {
+fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usize {
     if list_list.len() == 1 && list_list[0].len() == 0 {
         list_list[0].push(val);
         return 0;
     }
-    let list_idx = match list_list
-        .binary_search_by(|list| {
-            val.cmp(&list.last().unwrap())
-        }) {
-            Ok(idx) | Err(idx) => idx
-        };
+    let list_idx = match list_list.binary_search_by(|list| val.cmp(&list.last().unwrap())) {
+        Ok(idx) | Err(idx) => idx,
+    };
 
     insert_sorted(&mut list_list[list_idx], val);
     list_idx
@@ -57,10 +57,10 @@ impl<'a, T: Ord> SortedList<T> {
         self.lists.iter().any(|list| list.contains(val))
     }
 
-     fn insert(&mut self, new_val: T) {
-         let idx_changed = insert_list(&mut self.lists, new_val);
-         self.len += 1;
-         self.expand(idx_changed);
+    fn insert(&mut self, new_val: T) {
+        let idx_changed = insert_list_of_lists(&mut self.lists, new_val);
+        self.len += 1;
+        self.expand(idx_changed);
     }
 
     /// Splits sublists that are more than double the load level.
@@ -85,47 +85,31 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
     fn contract(&mut self, idx: usize) {
-        if self.lists.len() > 1 &&
-            self.lists[idx].len() < self.load_factor / 2 {
+        if self.lists.len() > 1 && self.lists[idx].len() < self.load_factor / 2 {
             self.actual_contract(idx)
         }
     }
 
     // TODO: this can make lists that are too big.
     /// Contracts with the nearest list.
-    /// Example:
-    /// ```
-    /// let list = SortedList<u32> {
-    ///   lists: Vec![vec![-6,-5,-3],
-    ///               vec![1,2,3,4,5],
-    ///               vec![99,100],],
-    ///   load_factor: 2,
-    ///   len: 10,
-    ///   }
-    ///   let new_lists = list.actual_contract(1).lists;
-    ///   assert_eq!(new_lists, vec![vec![-6,-5,-3],
-    ///                              vec![1,2,3,4,5,99,100],]);
-    ///  ```
     fn actual_contract(&mut self, idx: usize) {
         assert!(self.len() > 1);
-        let (low_idx, high_idx) =
-            if idx == 0 {
-                (0, 1)
-            } else if idx == self.lists.len() {
-                (self.lists.len() - 2, self.lists.len() - 1)
+        let (low_idx, high_idx) = if idx == 0 {
+            (0, 1)
+        } else if idx == self.lists.len() {
+            (self.lists.len() - 2, self.lists.len() - 1)
+        } else {
+            let other_list: usize = if self.lists[idx - 1].len() < self.lists[idx + 1].len() {
+                idx - 1
             } else {
-                let other_list: usize =
-                    if self.lists[idx - 1].len() < self.lists[idx + 1].len() {
-                        idx - 1
-                    } else {
-                        idx + 1
-                    };
-                if idx < other_list {
-                    (idx, other_list)
-                } else {
-                    (other_list, idx)
-                }
+                idx + 1
             };
+            if idx < other_list {
+                (idx, other_list)
+            } else {
+                (other_list, idx)
+            }
+        };
 
         let mut removed_list = self.lists.remove(high_idx);
         self.lists[low_idx].append(&mut removed_list);
@@ -215,11 +199,12 @@ impl<T: Ord> Iterator for IntoIter<T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (ll_min, ll_max) = self.list_list_iter.size_hint();
         let (cl_min, cl_max) = self.curr_list_iter.size_hint();
-        (ll_min + cl_min,
-         match (ll_max, cl_max) {
-             (Some(x), Some(y)) => Some(x + y),
-             _ => None,
-         }
+        (
+            ll_min + cl_min,
+            match (ll_max, cl_max) {
+                (Some(x), Some(y)) => Some(x + y),
+                _ => None,
+            },
         )
     }
 }
@@ -235,8 +220,6 @@ impl<'a, T: Ord> IntoIterator for SortedList<T> {
         }
     }
 }
-
-
 
 impl<'a, T: Ord> Default for SortedList<T> {
     fn default() -> Self {
@@ -254,7 +237,8 @@ impl<'a, T: Ord> Default for SortedList<T> {
 /// Actually may not be that bad based on the performance analysis that's todo
 impl<'a, T: Ord> FromIterator<T> for SortedList<T> {
     fn from_iter<F>(iter: F) -> Self
-        where F: IntoIterator<Item = T>
+    where
+        F: IntoIterator<Item = T>,
     {
         let mut list = Self::default();
         let mut iter = iter.into_iter();
@@ -267,12 +251,21 @@ impl<'a, T: Ord> FromIterator<T> for SortedList<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::SortedList;
+    use super::{insert_sorted, SortedList};
     #[test]
     pub fn it_builds() {
         let default = SortedList::<u8>::default();
         assert!(default.lists.len() == 1);
         assert!(default.lists[0].len() == 0);
+    }
+
+    #[test]
+    pub fn test_insert() {
+        let mut vec = vec![];
+        insert_sorted(&mut vec, 22);
+        assert_eq!(vec![22], vec);
+        insert_sorted(&mut vec, -1000);
+        assert_eq!(vec![-1000, 22], vec);
     }
 
     #[test]
@@ -320,6 +313,19 @@ mod tests {
         assert_eq!(&20, list.last_mut().unwrap());
     }
 
+    #[test]
+    pub fn test_actual_contract() {
+        let mut list = SortedList::<i32> {
+            lists: vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5], vec![99, 100]],
+            load_factor: 2,
+            len: 10,
+        };
+        list.actual_contract(1);
+        assert_eq!(
+            list.lists,
+            vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5, 99, 100]]
+        );
+    }
 }
 
 #[cfg(test)]
@@ -332,7 +338,9 @@ mod quickcheck_tests {
         let from_iter: SortedList<T> = list.iter().map(|x| x.clone()).collect();
         let from_collection = {
             let mut collection = SortedList::default();
-            for x in list.iter() { collection.insert(x.clone()); }
+            for x in list.iter() {
+                collection.insert(x.clone());
+            }
             collection
         };
 
