@@ -6,4 +6,5 @@ authors = ["Galen O'Sullivan <galenosullivan@gmail.com>"]
 [dependencies]
 
 [dev-dependencies]
+rand = "^0.5"
 quickcheck = "0.4.1"

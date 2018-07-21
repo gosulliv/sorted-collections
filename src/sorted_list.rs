@@ -7,8 +7,10 @@
 //
 // other invariants?
 
+use std::cmp::Ordering;
 use std::default::Default;
 use std::iter::FromIterator;
+use std::ops::{Index, IndexMut};
 
 /// if the list size grows greater than the load factor, we split it.
 /// If the list size shrinks below the load factor, we join two lists.
@@ -30,8 +32,23 @@ fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usize {
         list_list[0].push(val);
         return 0;
     }
-    let list_idx = match list_list.binary_search_by(|list| val.cmp(&list.last().unwrap())) {
-        Ok(idx) | Err(idx) => idx,
+    let list_idx = match list_list.binary_search_by(|list| {
+        let first = list.first().unwrap();
+        let last = list.last().unwrap();
+        if last < &val {
+            Ordering::Less
+        } else if first > &val {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    }) {
+        Ok(idx) => idx,
+        Err(idx) => match idx {
+            // TODO how fair is this?
+            0 => 0,
+            n => n - 1,
+        },
     };
 
     insert_sorted(&mut list_list[list_idx], val);
@@ -57,7 +74,7 @@ impl<'a, T: Ord> SortedList<T> {
         self.lists.iter().any(|list| list.contains(val))
     }
 
-    fn insert(&mut self, new_val: T) {
+    pub fn insert(&mut self, new_val: T) {
         let idx_changed = insert_list_of_lists(&mut self.lists, new_val);
         self.len += 1;
         self.expand(idx_changed);
@@ -160,6 +177,36 @@ impl<'a, T: Ord> SortedList<T> {
             list_list_iter: ll_iter,
             curr_list_iter: cl_iter,
         }
+    }
+}
+
+impl<T: Ord> Index<usize> for SortedList<T> {
+    type Output = T;
+
+    fn index(&self, idx: usize) -> &T {
+        let mut idx = idx;
+        for list in &self.lists {
+            if list.len() > idx {
+                return &list[idx];
+            } else {
+                idx = idx - list.len();
+            }
+        }
+        panic!("element greater than list size");
+    }
+}
+
+impl<T: Ord> IndexMut<usize> for SortedList<T> {
+    fn index_mut(&mut self, idx: usize) -> &mut T {
+        let mut idx = idx;
+        for list in &mut self.lists {
+            if list.len() > idx {
+                return &mut list[idx];
+            } else {
+                idx = idx - list.len();
+            }
+        }
+        panic!("element greater than list size");
     }
 }
 
@@ -314,6 +361,54 @@ mod tests {
     }
 
     #[test]
+    pub fn sequence() {
+        let mut list = SortedList::default();
+        for i in 0..15000 {
+            assert_eq!(i, list.len());
+            list.insert(i);
+        }
+
+        for i in 0..15000 {
+            assert_eq!(i, list[i]);
+        }
+    }
+
+    #[test]
+    pub fn zeroes() {
+        let mut list = SortedList::default();
+
+        for i in 0..15000 {
+            assert_eq!(i, list.len());
+            list.insert(0);
+        }
+
+        for i in 0..15000 {
+            assert_eq!(0, list[i]);
+        }
+    }
+
+    #[test]
+    pub fn ones() {
+        let mut list = SortedList::default();
+
+        for i in 0..15000 {
+            assert_eq!(i, list.len());
+            list.insert(1);
+        }
+
+        for i in 0..15000 {
+            assert_eq!(1, list[i]);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    pub fn out_of_bounds_panics() {
+        let list: SortedList<i32> = SortedList::default();
+        list[0];
+    }
+
+    #[test]
     pub fn test_actual_contract() {
         let mut list = SortedList::<i32> {
             lists: vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5], vec![99, 100]],
@@ -326,6 +421,7 @@ mod tests {
             vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5, 99, 100]]
         );
     }
+
 }
 
 #[cfg(test)]
