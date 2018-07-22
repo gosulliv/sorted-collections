@@ -74,7 +74,7 @@ impl<'a, T: Ord> SortedList<T> {
         self.lists.iter().any(|list| list.contains(val))
     }
 
-    pub fn insert(&mut self, new_val: T) {
+    pub fn add(&mut self, new_val: T) {
         let idx_changed = insert_list_of_lists(&mut self.lists, new_val);
         self.len += 1;
         self.expand(idx_changed);
@@ -290,7 +290,7 @@ impl<'a, T: Ord> FromIterator<T> for SortedList<T> {
         let mut list = Self::default();
         let mut iter = iter.into_iter();
         while let Some(x) = iter.next() {
-            list.insert(x);
+            list.add(x);
         }
         list
     }
@@ -320,14 +320,14 @@ mod tests {
         let mut list: SortedList<i32> = SortedList::default();
         assert_eq!(0, list.len());
 
-        list.insert(3);
+        list.add(3);
 
         assert!(list.contains(&3));
         assert!(!list.contains(&13));
         assert_eq!(&3, list.first().unwrap());
         assert_eq!(&3, list.last().unwrap());
 
-        list.insert(13);
+        list.add(13);
 
         assert_eq!(2, list.len());
         assert!(list.contains(&3));
@@ -351,12 +351,12 @@ mod tests {
 
         assert_eq!(0, list.len());
 
-        list.insert(1);
+        list.add(1);
         assert_eq!(1, list.len());
         assert_eq!(&1, list.last().unwrap());
         assert_eq!(&1, list.first().unwrap());
 
-        list.insert(20);
+        list.add(20);
         assert_eq!(&20, list.last_mut().unwrap());
     }
 
@@ -365,7 +365,7 @@ mod tests {
         let mut list = SortedList::default();
         for i in 0..15000 {
             assert_eq!(i, list.len());
-            list.insert(i);
+            list.add(i);
         }
 
         for i in 0..15000 {
@@ -379,7 +379,7 @@ mod tests {
 
         for i in 0..15000 {
             assert_eq!(i, list.len());
-            list.insert(0);
+            list.add(0);
         }
 
         for i in 0..15000 {
@@ -393,7 +393,7 @@ mod tests {
 
         for i in 0..15000 {
             assert_eq!(i, list.len());
-            list.insert(1);
+            list.add(1);
         }
 
         for i in 0..15000 {
@@ -422,12 +422,6 @@ mod tests {
         );
     }
 
-}
-
-#[cfg(test)]
-mod quickcheck_tests {
-    use super::SortedList;
-
     fn prop_from_iter_sorted<T: Ord + Clone>(list: Vec<T>) -> bool {
         let mut list = list.clone(); // can't get mutable values from quickcheck.
         list.sort();
@@ -435,7 +429,7 @@ mod quickcheck_tests {
         let from_collection = {
             let mut collection = SortedList::default();
             for x in list.iter() {
-                collection.insert(x.clone());
+                collection.add(x.clone());
             }
             collection
         };
