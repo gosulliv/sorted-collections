@@ -2,8 +2,6 @@
 #[macro_use]
 extern crate quickcheck;
 
-//pub use bisect::*;
-mod jenks_index;
 pub mod sorted_list;
 pub mod unsorted_list;
 
