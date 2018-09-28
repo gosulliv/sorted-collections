@@ -26,8 +26,8 @@ fn basic_test() {
 
     assert!(list.contains(&3));
     assert!(!list.contains(&13));
-    assert_eq!(Some(3), list.first());
-    assert_eq!(Some(3), list.last());
+    assert_eq!(Some(&3), list.first());
+    assert_eq!(Some(&3), list.last());
 
     list.add(13);
 
@@ -35,18 +35,18 @@ fn basic_test() {
     assert!(list.contains(&3));
     assert!(list.contains(&13));
     assert!(!list.contains(&1));
-    assert_eq!(Some(3), list.first());
-    assert_eq!(Some(13), list.last());
+    assert_eq!(Some(&3), list.first());
+    assert_eq!(Some(&13), list.last());
 
     assert_eq!(13, list.pop_last().unwrap());
 
     assert!(list.contains(&3));
     assert!(!list.contains(&13));
-    assert_eq!(Some(3), list.last());
+    assert_eq!(Some(&3), list.last());
 
     assert_eq!(3, list.pop_first().unwrap());
 
-    assert!(!list.contains(&3));
+    assert!(!list.contains(&3)); 
 
     assert_eq!(1, list.lists.len());
     assert_eq!(0, list.lists[0].len());
@@ -55,11 +55,11 @@ fn basic_test() {
 
     list.add(1);
     assert_eq!(1, list.len());
-    assert_eq!(Some(1), list.last());
-    assert_eq!(Some(1), list.first());
+    assert_eq!(Some(&1), list.last());
+    assert_eq!(Some(&1), list.first());
 
     list.add(20);
-    assert_eq!(Some(20), list.last_mut());
+    assert_eq!(Some(&mut 20), list.last_mut());
 }
 
 #[test]
