@@ -7,53 +7,13 @@
 //
 // other invariants?
 
+use super::sorted_utils;
 use std::cmp::Ordering;
 use std::default::Default;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
 
-/// if the list size grows greater than the load factor, we split it.
-/// If the list size shrinks below the load factor, we join two lists.
-const DEFAULT_LOAD_FACTOR: usize = 1000;
-
-/// Inserts into a list while maintaining a preexisting ordering.
-fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
-    match vec.binary_search(&val) {
-        Ok(idx) | Err(idx) => vec.insert(idx, val),
-    }
-}
-
-/// Inserts a value into a list of lists, as in SortedList.
-///
-/// Does not handle empty sublists except for a single empty list.
-/// returns the index of the list that was inserted into.
-fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usize {
-    if list_list.len() == 1 && list_list[0].len() == 0 {
-        list_list[0].push(val);
-        return 0;
-    }
-    let list_idx = match list_list.binary_search_by(|list| {
-        let first = list.first().unwrap();
-        let last = list.last().unwrap();
-        if last < &val {
-            Ordering::Less
-        } else if first > &val {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    }) {
-        Ok(idx) => idx,
-        Err(idx) => match idx {
-            // TODO how fair is this?
-            0 => 0,
-            n => n - 1,
-        },
-    };
-
-    insert_sorted(&mut list_list[list_idx], val);
-    list_idx
-}
+pub const DEFAULT_LOAD_FACTOR: usize = 1000;
 
 #[derive(Debug)]
 pub struct SortedList<T: Ord> {
@@ -75,7 +35,7 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
     pub fn add(&mut self, new_val: T) {
-        let idx_changed = insert_list_of_lists(&mut self.lists, new_val);
+        let idx_changed = sorted_utils::insert_list_of_lists(&mut self.lists, new_val);
         self.len += 1;
         self.expand(idx_changed);
     }
@@ -298,7 +258,9 @@ impl<'a, T: Ord> FromIterator<T> for SortedList<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{insert_sorted, SortedList};
+    use super::sorted_utils::insert_sorted;
+    use super::SortedList;
+
     #[test]
     pub fn it_builds() {
         let default = SortedList::<u8>::default();
