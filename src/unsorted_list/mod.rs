@@ -190,15 +190,8 @@ impl<T: Ord> Iterator for IntoIter<T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (ll_min, ll_max) = self.outer.size_hint();
-        let (cl_min, cl_max) = self.inner.size_hint();
-        (
-            ll_min + cl_min,
-            match (ll_max, cl_max) {
-                (Some(x), Some(y)) => Some(x + y),
-                _ => None,
-            },
-        )
+        let (min, _) = self.inner.size_hint();
+        (min, None)
     }
 }
 

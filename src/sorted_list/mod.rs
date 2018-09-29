@@ -8,7 +8,7 @@
 // other invariants?
 
 #[cfg(test)]
-mod tests;
+mod tests; 
 
 use super::sorted_utils;
 use std::default::Default;
@@ -202,12 +202,9 @@ impl<T: Ord> Iterator for IntoIter<T> {
             })
         })
     }
-    // Size hint doesn't seem super helpful
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match (self.outer.size_hint(), self.inner.size_hint()) {
-            ((o_min, Some(o_max)), (i_min, Some(i_max))) => (o_min + i_min, Some(o_max + i_max)),
-            ((o_min, _), (i_min, _)) => (o_min + i_min, None),
-        }
+        let (min, _) = self.inner.size_hint();
+        (min, None)
     }
 }
 
