@@ -7,7 +7,7 @@ pub const DEFAULT_LOAD_FACTOR: usize = 1000;
 /// Inserts into a list while maintaining a preexisting ordering.
 pub fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
     match vec.binary_search(&val) {
-        Ok(idx) | Err(idx) => vec.insert(idx, val),
+        Ok(i) | Err(i) => vec.insert(i, val),
     }
 }
 
@@ -20,7 +20,7 @@ pub fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usiz
         list_list[0].push(val);
         return 0;
     }
-    let list_idx = match list_list.binary_search_by(|list| {
+    let list_i = match list_list.binary_search_by(|list| {
         let first = list.first().unwrap();
         let last = list.last().unwrap();
         if last < &val {
@@ -31,14 +31,14 @@ pub fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usiz
             Ordering::Equal
         }
     }) {
-        Ok(idx) => idx,
-        Err(idx) => match idx {
+        Ok(i) => i,
+        Err(i) => match i {
             // TODO how fair is this?
             0 => 0,
             n => n - 1,
         },
     };
 
-    insert_sorted(&mut list_list[list_idx], val);
-    list_idx
+    insert_sorted(&mut list_list[list_i], val);
+    list_i
 }

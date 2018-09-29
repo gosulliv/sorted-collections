@@ -38,61 +38,61 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
     pub fn add(&mut self, new_val: T) {
-        let idx_changed = sorted_utils::insert_list_of_lists(&mut self.lists, new_val);
+        let i_changed = sorted_utils::insert_list_of_lists(&mut self.lists, new_val);
         self.len += 1;
-        self.expand(idx_changed);
+        self.expand(i_changed);
     }
 
     /// Splits sublists that are more than double the load level.
     /// Updates the index when the sublist length is less than double the load
     /// level. This requires incrementing the nodes in a traversal from the
     /// leaf node to the root. For an example traversal see self._loc.
-    fn expand(&mut self, idx: usize) {
+    fn expand(&mut self, i: usize) {
         // >= because otherwise contract can fail... better solution for this?
-        if self.lists[idx].len() >= 2 * self.load_factor {
-            self.actual_expand(idx)
+        if self.lists[i].len() >= 2 * self.load_factor {
+            self.actual_expand(i)
         }
     }
 
-    fn actual_expand(&mut self, idx: usize) {
+    fn actual_expand(&mut self, i: usize) {
         let new_list = {
-            let the_list = &mut self.lists[idx];
+            let the_list = &mut self.lists[i];
             let split_point = the_list.len() / 2;
             the_list.split_off(split_point)
         };
 
-        self.lists.insert(idx + 1, new_list);
+        self.lists.insert(i + 1, new_list);
     }
 
-    fn contract(&mut self, idx: usize) {
-        if self.lists.len() > 1 && self.lists[idx].len() < self.load_factor / 2 {
-            self.actual_contract(idx)
+    fn contract(&mut self, i: usize) {
+        if self.lists.len() > 1 && self.lists[i].len() < self.load_factor / 2 {
+            self.actual_contract(i)
         }
     }
 
     // TODO: this can make lists that are too big.
     /// Contracts with the nearest list.
-    fn actual_contract(&mut self, idx: usize) {
+    fn actual_contract(&mut self, i: usize) {
         assert!(self.len() > 1);
-        let (low_idx, high_idx) = if idx == 0 {
+        let (low_i, high_i) = if i == 0 {
             (0, 1)
-        } else if idx == self.lists.len() {
+        } else if i == self.lists.len() {
             (self.lists.len() - 2, self.lists.len() - 1)
         } else {
-            let other_list: usize = if self.lists[idx - 1].len() < self.lists[idx + 1].len() {
-                idx - 1
+            let other_list: usize = if self.lists[i - 1].len() < self.lists[i + 1].len() {
+                i - 1
             } else {
-                idx + 1
+                i + 1
             };
-            if idx < other_list {
-                (idx, other_list)
+            if i < other_list {
+                (i, other_list)
             } else {
-                (other_list, idx)
+                (other_list, i)
             }
         };
 
-        let mut removed_list = self.lists.remove(high_idx);
-        self.lists[low_idx].append(&mut removed_list);
+        let mut removed_list = self.lists.remove(high_i);
+        self.lists[low_i].append(&mut removed_list);
     }
 
     pub fn first(&self) -> Option<&T> {
@@ -146,13 +146,13 @@ impl<'a, T: Ord> SortedList<T> {
 impl<T: Ord> Index<usize> for SortedList<T> {
     type Output = T;
 
-    fn index(&self, idx: usize) -> &T {
-        let mut idx = idx;
+    fn index(&self, i: usize) -> &T {
+        let mut i = i;
         for list in &self.lists {
-            if list.len() > idx {
-                return &list[idx];
+            if list.len() > i {
+                return &list[i];
             } else {
-                idx = idx - list.len();
+                i = i - list.len();
             }
         }
         panic!("element greater than list size");
@@ -160,13 +160,13 @@ impl<T: Ord> Index<usize> for SortedList<T> {
 }
 
 impl<T: Ord> IndexMut<usize> for SortedList<T> {
-    fn index_mut(&mut self, idx: usize) -> &mut T {
-        let mut idx = idx;
+    fn index_mut(&mut self, i: usize) -> &mut T {
+        let mut i = i;
         for list in &mut self.lists {
-            if list.len() > idx {
-                return &mut list[idx];
+            if list.len() > i {
+                return &mut list[i];
             } else {
-                idx = idx - list.len();
+                i = i - list.len();
             }
         }
         panic!("element greater than list size");
