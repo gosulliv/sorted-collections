@@ -22,21 +22,21 @@ impl<T> UnsortedList<T> {
 
         self.lists[outer].insert(i, element);
         self.len += 1;
-        self.checked_expand(outer);
+        self.expand(outer);
     }
 
     /// Splits sublists that are more than double the load level.
     /// Updates the i when the sublist length is less than double the load
     /// level. This requires incrementing the nodes in a traversal from the
     /// leaf node to the root. For an example traversal see self._loc.
-    fn checked_expand(&mut self, i: usize) {
+    fn expand(&mut self, i: usize) {
         // >= because otherwise contract can fail... better solution for this?
         if self.lists[i].len() >= 2 * self.load_factor {
-            self.do_expand(i)
+            self.unchecked_expand(i)
         }
     }
 
-    fn do_expand(&mut self, i: usize) {
+    fn unchecked_expand(&mut self, i: usize) {
         let new_list = {
             let inner = &mut self.lists[i];
             let mid = inner.len() / 2;
@@ -47,14 +47,14 @@ impl<T> UnsortedList<T> {
     }
 
     // TODO: this can make lists that are too big.
-    fn checked_contract(&mut self, i: usize) {
+    fn contract(&mut self, i: usize) {
         if self.lists.len() > 1 && self.lists[i].len() < self.load_factor / 2 {
-            self.actual_contract(i)
+            self.unchecked_contract(i)
         }
     }
 
     /// Contracts with the nearest list.
-    fn actual_contract(&mut self, i: usize) {
+    fn unchecked_contract(&mut self, i: usize) {
         debug_assert!(self.len() > 1);
         let (low, high) = self.contract_i(i);
         let mut removed_list = self.lists.remove(high);
@@ -101,7 +101,7 @@ impl<T> UnsortedList<T> {
         } else {
             self.len -= 1;
             let rv = Some(self.lists[0].remove(0));
-            self.checked_contract(0);
+            self.contract(0);
             rv
         }
     }
@@ -111,17 +111,17 @@ impl<T> UnsortedList<T> {
         self.len += 1;
         let len = self.lists.len();
         // FIXME catch with test?
-        self.checked_contract(len);
+        self.contract(len);
     }
 
     pub fn pop(&mut self) -> Option<T> {
         if let Some(rv) = self.lists.last_mut().and_then(|l| l.pop()) {
             self.len -= 1;
             let len = self.lists.len();
-            self.checked_contract(len);
+            self.contract(len);
             Some(rv)
-        } else{
-        None
+        } else {
+            None
         }
     }
     #[inline]
@@ -195,7 +195,7 @@ impl<T: Ord> Iterator for IntoIter<T> {
     }
 }
 
-impl<'a, T: Ord> IntoIterator for UnsortedList<T> {
+impl<T: Ord> IntoIterator for UnsortedList<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
@@ -207,7 +207,7 @@ impl<'a, T: Ord> IntoIterator for UnsortedList<T> {
     }
 }
 
-impl<'a, T: Ord> Default for UnsortedList<T> {
+impl<T: Ord> Default for UnsortedList<T> {
     fn default() -> Self {
         UnsortedList::<T> {
             lists: vec![Vec::new()],
@@ -235,7 +235,7 @@ impl<'a, T: Ord> FromIterator<T> for UnsortedList<T> {
     }
 }
 
-impl<'a, T: Ord> Index<usize> for UnsortedList<T> {
+impl<T: Ord> Index<usize> for UnsortedList<T> {
     type Output = T;
     fn index(&self, i: usize) -> &T {
         let (i, j) = self.indices(i);
@@ -243,7 +243,7 @@ impl<'a, T: Ord> Index<usize> for UnsortedList<T> {
     }
 }
 
-impl<'a, T: Ord> IndexMut<usize> for UnsortedList<T> {
+impl<T: Ord> IndexMut<usize> for UnsortedList<T> {
     fn index_mut(&mut self, i: usize) -> &mut T {
         let (i, j) = self.indices(i);
         &mut self.lists[i][j]

@@ -117,7 +117,7 @@ fn test_actual_contract() {
         load_factor: 2,
         len: 10,
     };
-    list.actual_contract(1);
+    list.unchecked_contract(1);
     assert_eq!(
         list.lists,
         vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5, 99, 100]]

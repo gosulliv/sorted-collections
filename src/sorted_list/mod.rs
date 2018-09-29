@@ -8,7 +8,7 @@
 // other invariants?
 
 #[cfg(test)]
-mod tests; 
+mod tests;
 
 use super::sorted_utils;
 use std::default::Default;
@@ -29,7 +29,7 @@ pub struct SortedList<T: Ord> {
 /// It is a logic error for an item to be modified in such a way that the item's ordering relative
 /// to any other item, as determined by the `Ord` trait, changes while it is in the heap. This is
 /// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
-impl<'a, T: Ord> SortedList<T> {
+impl<T: Ord> SortedList<T> {
     pub fn contains(&self, val: &T) -> bool {
         debug_assert!(!self.lists.is_empty());
 
@@ -49,15 +49,15 @@ impl<'a, T: Ord> SortedList<T> {
     fn expand(&mut self, i: usize) {
         // >= because otherwise contract can fail... better solution for this?
         if self.lists[i].len() >= 2 * self.load_factor {
-            self.actual_expand(i)
+            self.unchecked_expand(i)
         }
     }
 
-    fn actual_expand(&mut self, i: usize) {
+    fn unchecked_expand(&mut self, i: usize) {
         let new_list = {
-            let the_list = &mut self.lists[i];
-            let split_point = the_list.len() / 2;
-            the_list.split_off(split_point)
+            let inner = &mut self.lists[i];
+            let mid = inner.len() / 2;
+            inner.split_off(mid)
         };
 
         self.lists.insert(i + 1, new_list);
@@ -65,13 +65,13 @@ impl<'a, T: Ord> SortedList<T> {
 
     fn contract(&mut self, i: usize) {
         if self.lists.len() > 1 && self.lists[i].len() < self.load_factor / 2 {
-            self.actual_contract(i)
+            self.unchecked_contract(i)
         }
     }
 
     // TODO: this can make lists that are too big.
     /// Contracts with the nearest list.
-    fn actual_contract(&mut self, i: usize) {
+    fn unchecked_contract(&mut self, i: usize) {
         debug_assert!(self.lists.len() > 1);
         let (low, high) = match i {
             0 => (0, 1),
@@ -208,7 +208,7 @@ impl<T: Ord> Iterator for IntoIter<T> {
     }
 }
 
-impl<'a, T: Ord> IntoIterator for SortedList<T> {
+impl<T: Ord> IntoIterator for SortedList<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
@@ -220,7 +220,7 @@ impl<'a, T: Ord> IntoIterator for SortedList<T> {
     }
 }
 
-impl<'a, T: Ord> Default for SortedList<T> {
+impl<T: Ord> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
             lists: vec![Vec::new()],
@@ -234,7 +234,7 @@ impl<'a, T: Ord> Default for SortedList<T> {
 /// collection we're sorting, so what do you expect?
 ///
 /// Actually may not be that bad based on the performance analysis that's todo
-impl<'a, T: Ord> FromIterator<T> for SortedList<T> {
+impl<T: Ord> FromIterator<T> for SortedList<T> {
     fn from_iter<F>(iter: F) -> Self
     where
         F: IntoIterator<Item = T>,
