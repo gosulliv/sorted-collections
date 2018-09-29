@@ -1,4 +1,3 @@
-
 use super::UnsortedList;
 #[test]
 fn empty() {

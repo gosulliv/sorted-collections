@@ -46,7 +46,7 @@ fn basic_test() {
 
     assert_eq!(3, list.pop_first().unwrap());
 
-    assert!(!list.contains(&3)); 
+    assert!(!list.contains(&3));
 
     assert_eq!(1, list.lists.len());
     assert_eq!(0, list.lists[0].len());

@@ -162,8 +162,8 @@ impl<T: PartialEq> UnsortedList<T> {
 }
 
 pub struct Iter<'a, T: 'a> {
-    list_list_iter: ::std::slice::Iter<'a, Vec<T>>,
-    curr_list_iter: ::std::slice::Iter<'a, T>,
+    list_list_iter: std::slice::Iter<'a, Vec<T>>,
+    curr_list_iter: std::slice::Iter<'a, T>,
 }
 
 impl<'a, T: Ord> Iterator for Iter<'a, T> {
@@ -179,8 +179,8 @@ impl<'a, T: Ord> Iterator for Iter<'a, T> {
 }
 
 pub struct IntoIter<T> {
-    list_list_iter: ::std::vec::IntoIter<Vec<T>>,
-    curr_list_iter: ::std::vec::IntoIter<T>,
+    list_list_iter: std::vec::IntoIter<Vec<T>>,
+    curr_list_iter: std::vec::IntoIter<T>,
 }
 
 impl<T: Ord> Iterator for IntoIter<T> {
@@ -214,7 +214,7 @@ impl<'a, T: Ord> IntoIterator for UnsortedList<T> {
     fn into_iter(self) -> IntoIter<T> {
         IntoIter {
             list_list_iter: self.lists.into_iter(),
-            curr_list_iter: vec![].into_iter(),
+            curr_list_iter: Vec::new().into_iter(),
         }
     }
 }
@@ -222,7 +222,7 @@ impl<'a, T: Ord> IntoIterator for UnsortedList<T> {
 impl<'a, T: Ord> Default for UnsortedList<T> {
     fn default() -> Self {
         UnsortedList::<T> {
-            lists: vec![vec![]],
+            lists: vec![Vec::new()],
             load_factor: DEFAULT_LOAD_FACTOR,
             len: 0,
         }

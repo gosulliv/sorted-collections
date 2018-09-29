@@ -72,26 +72,26 @@ impl<'a, T: Ord> SortedList<T> {
     // TODO: this can make lists that are too big.
     /// Contracts with the nearest list.
     fn actual_contract(&mut self, i: usize) {
-        debug_assert!(self.len() > 1);
-        let (low_i, high_i) = if i == 0 {
-            (0, 1)
-        } else if i == self.lists.len() {
-            (self.lists.len() - 2, self.lists.len() - 1)
-        } else {
-            let other_list: usize = if self.lists[i - 1].len() < self.lists[i + 1].len() {
-                i - 1
-            } else {
-                i + 1
-            };
-            if i < other_list {
-                (i, other_list)
-            } else {
-                (other_list, i)
+        debug_assert!(self.lists.len() > 1);
+        let (low, high) = match i {
+            0 => (0, 1),
+            i if i == self.lists.len() => (self.lists.len() - 2, self.lists.len() - 1),
+            i => {
+                let other_list: usize = if self.lists[i - 1].len() < self.lists[i + 1].len() {
+                    i - 1
+                } else {
+                    i + 1
+                };
+                if i < other_list {
+                    (i, other_list)
+                } else {
+                    (other_list, i)
+                }
             }
         };
 
-        let mut removed_list = self.lists.remove(high_i);
-        self.lists[low_i].append(&mut removed_list);
+        let mut removed_list = self.lists.remove(high);
+        self.lists[low].append(&mut removed_list);
     }
 
     pub fn first(&self) -> Option<&T> {
@@ -119,13 +119,14 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
     pub fn pop_last(&mut self) -> Option<T> {
-        let rv = self.lists.last_mut().and_then(|l| l.pop());
-        if rv.is_some() {
+        if let Some(rv) = self.lists.last_mut().and_then(|l| l.pop()) {
             self.len -= 1;
             let len = self.len;
             self.contract(len);
+            Some(rv)
+        } else {
+            None
         }
-        rv
     }
 
     pub fn len(&self) -> usize {
@@ -133,12 +134,9 @@ impl<'a, T: Ord> SortedList<T> {
     }
 
     pub fn iter(&self) -> Iter<T> {
-        let mut ll_iter = self.lists.iter();
-        let cl_iter = ll_iter.next().unwrap().iter();
-        Iter {
-            list_list_iter: ll_iter,
-            curr_list_iter: cl_iter,
-        }
+        let mut outer = self.lists.iter();
+        let inner = outer.next().unwrap().iter();
+        Iter { outer, inner }
     }
 }
 
@@ -173,16 +171,16 @@ impl<T: Ord> IndexMut<usize> for SortedList<T> {
 }
 
 pub struct Iter<'a, T: 'a> {
-    list_list_iter: std::slice::Iter<'a, Vec<T>>,
-    curr_list_iter: std::slice::Iter<'a, T>,
+    outer: std::slice::Iter<'a, Vec<T>>,
+    inner: std::slice::Iter<'a, T>,
 }
 
 impl<'a, T: Ord> Iterator for Iter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr_list_iter.next().or_else(|| {
-            self.list_list_iter.next().and_then(|x| {
-                self.curr_list_iter = x.into_iter();
+        self.inner.next().or_else(|| {
+            self.outer.next().and_then(|x| {
+                self.inner = x.into_iter();
                 self.next()
             })
         })
@@ -190,31 +188,26 @@ impl<'a, T: Ord> Iterator for Iter<'a, T> {
 }
 
 pub struct IntoIter<T> {
-    list_list_iter: std::vec::IntoIter<Vec<T>>,
-    curr_list_iter: std::vec::IntoIter<T>,
+    outer: std::vec::IntoIter<Vec<T>>,
+    inner: std::vec::IntoIter<T>,
 }
 
 impl<T: Ord> Iterator for IntoIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr_list_iter.next().or_else(|| {
-            self.list_list_iter.next().and_then(|x| {
-                self.curr_list_iter = x.into_iter();
+        self.inner.next().or_else(|| {
+            self.outer.next().and_then(|x| {
+                self.inner = x.into_iter();
                 self.next()
             })
         })
     }
-
+    // Size hint doesn't seem super helpful
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (ll_min, ll_max) = self.list_list_iter.size_hint();
-        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
-        (
-            ll_min + cl_min,
-            match (ll_max, cl_max) {
-                (Some(x), Some(y)) => Some(x + y),
-                _ => None,
-            },
-        )
+        match (self.outer.size_hint(), self.inner.size_hint()) {
+            ((o_min, Some(o_max)), (i_min, Some(i_max))) => (o_min + i_min, Some(o_max + i_max)),
+            ((o_min, _), (i_min, _)) => (o_min + i_min, None),
+        }
     }
 }
 
@@ -224,16 +217,16 @@ impl<'a, T: Ord> IntoIterator for SortedList<T> {
 
     fn into_iter(self) -> IntoIter<T> {
         IntoIter {
-            list_list_iter: self.lists.into_iter(),
-            curr_list_iter: vec![].into_iter(),
+            outer: self.lists.into_iter(),
+            inner: Vec::new().into_iter(),
         }
-    }
+    } 
 }
 
 impl<'a, T: Ord> Default for SortedList<T> {
     fn default() -> Self {
         SortedList::<T> {
-            lists: vec![vec![]],
+            lists: vec![Vec::new()],
             load_factor: DEFAULT_LOAD_FACTOR,
             len: 0,
         }
