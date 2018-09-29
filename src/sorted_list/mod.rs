@@ -220,7 +220,7 @@ impl<'a, T: Ord> IntoIterator for SortedList<T> {
             outer: self.lists.into_iter(),
             inner: Vec::new().into_iter(),
         }
-    } 
+    }
 }
 
 impl<'a, T: Ord> Default for SortedList<T> {

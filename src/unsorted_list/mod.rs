@@ -12,23 +12,21 @@ pub struct UnsortedList<T> {
 }
 
 impl<T> UnsortedList<T> {
-    pub fn insert(&mut self, index: usize, element: T) {
-        let mut sublist_index = index;
-        let mut list_index = 0;
-
+    pub fn insert(&mut self, mut i: usize, element: T) {
+        let mut outer = 0;
         // biases towards the earlier list.
-        while sublist_index > self.lists[list_index].len() {
-            sublist_index -= self.lists[list_index].len();
-            list_index += 1;
+        while i > self.lists[outer].len() {
+            i -= self.lists[outer].len();
+            outer += 1;
         }
 
-        self.lists[list_index].insert(sublist_index, element);
+        self.lists[outer].insert(i, element);
         self.len += 1;
-        self.checked_expand(list_index);
+        self.checked_expand(outer);
     }
 
     /// Splits sublists that are more than double the load level.
-    /// Updates the index when the sublist length is less than double the load
+    /// Updates the i when the sublist length is less than double the load
     /// level. This requires incrementing the nodes in a traversal from the
     /// leaf node to the root. For an example traversal see self._loc.
     fn checked_expand(&mut self, i: usize) {
@@ -40,9 +38,9 @@ impl<T> UnsortedList<T> {
 
     fn do_expand(&mut self, i: usize) {
         let new_list = {
-            let the_list = &mut self.lists[i];
-            let split_point = the_list.len() / 2;
-            the_list.split_off(split_point)
+            let inner = &mut self.lists[i];
+            let mid = inner.len() / 2;
+            inner.split_off(mid)
         };
 
         self.lists.insert(i + 1, new_list);
@@ -58,30 +56,29 @@ impl<T> UnsortedList<T> {
     /// Contracts with the nearest list.
     fn actual_contract(&mut self, i: usize) {
         debug_assert!(self.len() > 1);
-        let (low_i, high_i) = self.contract_i(i);
-        let mut removed_list = self.lists.remove(high_i);
-        self.lists[low_i].append(&mut removed_list);
+        let (low, high) = self.contract_i(i);
+        let mut removed_list = self.lists.remove(high);
+        self.lists[low].append(&mut removed_list);
     }
 
     fn contract_i(&self, i: usize) -> (usize, usize) {
-        if i == 0 {
-            (0, 1)
-        } else if i == self.lists.len() {
-            (self.lists.len() - 2, self.lists.len() - 1)
-        } else {
-            let other_list: usize = if self.lists[i - 1].len() < self.lists[i + 1].len() {
-                i - 1
-            } else {
-                i + 1
-            };
-            if i < other_list {
-                (i, other_list)
-            } else {
-                (other_list, i)
+        match i {
+            0 => (0, 1),
+            i if i == self.lists.len() => (self.lists.len() - 2, self.lists.len() - 1),
+            i => {
+                let other_list: usize = if self.lists[i - 1].len() < self.lists[i + 1].len() {
+                    i - 1
+                } else {
+                    i + 1
+                };
+                if i < other_list {
+                    (i, other_list)
+                } else {
+                    (other_list, i)
+                }
             }
         }
     }
-
     pub fn first(&self) -> Option<&T> {
         self.lists.first().and_then(|x| x.first())
     }
@@ -118,38 +115,36 @@ impl<T> UnsortedList<T> {
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        let rv = self.lists.last_mut().and_then(|l| l.pop());
-        if rv.is_some() {
+        if let Some(rv) = self.lists.last_mut().and_then(|l| l.pop()) {
             self.len -= 1;
             let len = self.lists.len();
             self.checked_contract(len);
+            Some(rv)
+        } else{
+        None
         }
-        rv
     }
-
+    #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
 
     pub fn iter(&self) -> Iter<T> {
-        let mut ll_iter = self.lists.iter();
-        let cl_iter = ll_iter.next().unwrap().iter();
-        Iter {
-            list_list_iter: ll_iter,
-            curr_list_iter: cl_iter,
-        }
+        let mut outer = self.lists.iter();
+        let inner = outer.next().unwrap().iter();
+        Iter { outer, inner }
     }
 
-    fn indices(&self, index: usize) -> (usize, usize) {
-        let mut sublist_index = index;
-        let mut list_index = 0;
+    #[inline]
+    fn indices(&self, mut i: usize) -> (usize, usize) {
+        let mut outer = 0;
 
         // biases towards the earlier list.
-        while sublist_index > self.lists[list_index].len() {
-            sublist_index -= self.lists[list_index].len();
-            list_index += 1;
+        while i > self.lists[outer].len() {
+            i -= self.lists[outer].len();
+            outer += 1;
         }
-        (list_index, sublist_index)
+        (outer, i)
     }
 }
 
@@ -162,16 +157,16 @@ impl<T: PartialEq> UnsortedList<T> {
 }
 
 pub struct Iter<'a, T: 'a> {
-    list_list_iter: std::slice::Iter<'a, Vec<T>>,
-    curr_list_iter: std::slice::Iter<'a, T>,
+    outer: std::slice::Iter<'a, Vec<T>>,
+    inner: std::slice::Iter<'a, T>,
 }
 
 impl<'a, T: Ord> Iterator for Iter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr_list_iter.next().or_else(|| {
-            self.list_list_iter.next().and_then(|x| {
-                self.curr_list_iter = x.into_iter();
+        self.inner.next().or_else(|| {
+            self.outer.next().and_then(|x| {
+                self.inner = x.into_iter();
                 self.next()
             })
         })
@@ -179,24 +174,24 @@ impl<'a, T: Ord> Iterator for Iter<'a, T> {
 }
 
 pub struct IntoIter<T> {
-    list_list_iter: std::vec::IntoIter<Vec<T>>,
-    curr_list_iter: std::vec::IntoIter<T>,
+    outer: std::vec::IntoIter<Vec<T>>,
+    inner: std::vec::IntoIter<T>,
 }
 
 impl<T: Ord> Iterator for IntoIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr_list_iter.next().or_else(|| {
-            self.list_list_iter.next().and_then(|x| {
-                self.curr_list_iter = x.into_iter();
+        self.inner.next().or_else(|| {
+            self.outer.next().and_then(|x| {
+                self.inner = x.into_iter();
                 self.next()
             })
         })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (ll_min, ll_max) = self.list_list_iter.size_hint();
-        let (cl_min, cl_max) = self.curr_list_iter.size_hint();
+        let (ll_min, ll_max) = self.outer.size_hint();
+        let (cl_min, cl_max) = self.inner.size_hint();
         (
             ll_min + cl_min,
             match (ll_max, cl_max) {
@@ -213,8 +208,8 @@ impl<'a, T: Ord> IntoIterator for UnsortedList<T> {
 
     fn into_iter(self) -> IntoIter<T> {
         IntoIter {
-            list_list_iter: self.lists.into_iter(),
-            curr_list_iter: Vec::new().into_iter(),
+            outer: self.lists.into_iter(),
+            inner: Vec::new().into_iter(),
         }
     }
 }
@@ -249,16 +244,16 @@ impl<'a, T: Ord> FromIterator<T> for UnsortedList<T> {
 
 impl<'a, T: Ord> Index<usize> for UnsortedList<T> {
     type Output = T;
-    fn index(&self, index: usize) -> &T {
-        let (list_index, sublist_index) = self.indices(index);
-        &self.lists[list_index][sublist_index]
+    fn index(&self, i: usize) -> &T {
+        let (i, j) = self.indices(i);
+        &self.lists[i][j]
     }
 }
 
 impl<'a, T: Ord> IndexMut<usize> for UnsortedList<T> {
-    fn index_mut(&mut self, index: usize) -> &mut T {
-        let (list_index, sublist_index) = self.indices(index);
-        &mut self.lists[list_index][sublist_index]
+    fn index_mut(&mut self, i: usize) -> &mut T {
+        let (i, j) = self.indices(i);
+        &mut self.lists[i][j]
     }
 }
 
