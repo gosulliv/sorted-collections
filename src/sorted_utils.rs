@@ -32,12 +32,9 @@ pub fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usiz
         }
     }) {
         Ok(i) => i,
-        Err(i) => match i {
-            // TODO how fair is this?
-            0 => 0,
-            n => n - 1,
-        },
-    };
+        Err(0) => 0,
+        Err(n) => n-1, // TODO: how fair is this?
+        };
 
     insert_sorted(&mut list_list[list_i], val);
     list_i

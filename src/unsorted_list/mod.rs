@@ -57,7 +57,7 @@ impl<T> UnsortedList<T> {
 
     /// Contracts with the nearest list.
     fn actual_contract(&mut self, i: usize) {
-        assert!(self.len() > 1);
+        debug_assert!(self.len() > 1);
         let (low_i, high_i) = self.contract_i(i);
         let mut removed_list = self.lists.remove(high_i);
         self.lists[low_i].append(&mut removed_list);
@@ -155,7 +155,7 @@ impl<T> UnsortedList<T> {
 
 impl<T: PartialEq> UnsortedList<T> {
     pub fn contains(&self, val: &T) -> bool {
-        assert!(!self.lists.is_empty());
+        debug_assert!(!self.lists.is_empty());
 
         self.lists.iter().any(|list| list.contains(val))
     }

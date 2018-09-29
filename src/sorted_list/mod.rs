@@ -11,7 +11,6 @@
 mod tests;
 
 use super::sorted_utils;
-use std::cmp::Ordering;
 use std::default::Default;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
@@ -32,7 +31,7 @@ pub struct SortedList<T: Ord> {
 /// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
 impl<'a, T: Ord> SortedList<T> {
     pub fn contains(&self, val: &T) -> bool {
-        assert!(!self.lists.is_empty());
+        debug_assert!(!self.lists.is_empty());
 
         self.lists.iter().any(|list| list.contains(val))
     }
@@ -73,7 +72,7 @@ impl<'a, T: Ord> SortedList<T> {
     // TODO: this can make lists that are too big.
     /// Contracts with the nearest list.
     fn actual_contract(&mut self, i: usize) {
-        assert!(self.len() > 1);
+        debug_assert!(self.len() > 1);
         let (low_i, high_i) = if i == 0 {
             (0, 1)
         } else if i == self.lists.len() {
@@ -174,8 +173,8 @@ impl<T: Ord> IndexMut<usize> for SortedList<T> {
 }
 
 pub struct Iter<'a, T: 'a> {
-    list_list_iter: ::std::slice::Iter<'a, Vec<T>>,
-    curr_list_iter: ::std::slice::Iter<'a, T>,
+    list_list_iter: std::slice::Iter<'a, Vec<T>>,
+    curr_list_iter: std::slice::Iter<'a, T>,
 }
 
 impl<'a, T: Ord> Iterator for Iter<'a, T> {
@@ -191,8 +190,8 @@ impl<'a, T: Ord> Iterator for Iter<'a, T> {
 }
 
 pub struct IntoIter<T> {
-    list_list_iter: ::std::vec::IntoIter<Vec<T>>,
-    curr_list_iter: ::std::vec::IntoIter<T>,
+    list_list_iter: std::vec::IntoIter<Vec<T>>,
+    curr_list_iter: std::vec::IntoIter<T>,
 }
 
 impl<T: Ord> Iterator for IntoIter<T> {

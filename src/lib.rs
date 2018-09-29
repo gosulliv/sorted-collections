@@ -13,6 +13,6 @@ pub use unsorted_list::UnsortedList;
 mod tests {
     #[test]
     fn it_works() {
-        assert!(0 == 0);
+        debug_assert!(0 == 0);
     }
 }
