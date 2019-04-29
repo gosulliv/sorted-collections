@@ -24,7 +24,7 @@ pub struct SortedList<T: Ord> {
     len: usize,
 }
 
-/// The sorted list you've all been waiting for.
+/// A sorted list with no `unsafe` code.
 ///
 /// It is a logic error for an item to be modified in such a way that the item's ordering relative
 /// to any other item, as determined by the `Ord` trait, changes while it is in the heap. This is
