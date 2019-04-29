@@ -1,22 +1,42 @@
 //! Module for a sorted list using multiple lists of varying length.
 //!
 //! Copied from Grant Jenks' sorted containers.
-
-// TODO:
-// make sure the index is never truly empty (should be [0] if empty).
-//
-// other invariants?
+//!
+//! # Example usage
+//! ```
+//! use sorted_collections::SortedList;
+//! let mut list: SortedList<i32> = SortedList::new();
+//! assert_eq!(0, list.len());
+//!
+//! list.add(3);
+//!
+//! assert!(list.contains(&3));
+//! assert!(!list.contains(&13));
+//! assert_eq!(Some(&3), list.first());
+//! assert_eq!(Some(&3), list.last());
+//!
+//! list.add(13);
+//!
+//! assert_eq!(2, list.len());
+//! assert!(list.contains(&3));
+//! assert!(list.contains(&13));
+//! assert!(!list.contains(&1));
+//! ```
 
 #[cfg(test)]
 mod tests;
 
-use super::sorted_utils;
+use super::sorted_utils::{insert_list_of_lists, DEFAULT_LOAD_FACTOR};
 use std::default::Default;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
 
-pub const DEFAULT_LOAD_FACTOR: usize = 1000;
-
+/// A sorted list with no `unsafe` code.
+///
+/// It is a logic error for an item to be modified in such a way that the item's ordering relative
+/// to any other item, as determined by the `Ord` trait, changes while it is in the heap (similar
+/// to the standard library collections). This is normally only possible through `Cell`, `RefCell`,
+/// global state, I/O, or unsafe code.
 #[derive(Debug)]
 pub struct SortedList<T: Ord> {
     lists: Vec<Vec<T>>, // There is always at least one element in this list.
@@ -24,12 +44,15 @@ pub struct SortedList<T: Ord> {
     len: usize,
 }
 
-/// A sorted list with no `unsafe` code.
-///
-/// It is a logic error for an item to be modified in such a way that the item's ordering relative
-/// to any other item, as determined by the `Ord` trait, changes while it is in the heap. This is
-/// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
 impl<T: Ord> SortedList<T> {
+    pub fn new() -> Self {
+        Self {
+            lists: vec![Vec::new()],
+            load_factor: DEFAULT_LOAD_FACTOR,
+            len: 0,
+        }
+    }
+
     pub fn contains(&self, val: &T) -> bool {
         debug_assert!(!self.lists.is_empty());
 
@@ -37,7 +60,7 @@ impl<T: Ord> SortedList<T> {
     }
 
     pub fn add(&mut self, new_val: T) {
-        let i_changed = sorted_utils::insert_list_of_lists(&mut self.lists, new_val);
+        let i_changed = insert_list_of_lists(&mut self.lists, new_val);
         self.len += 1;
         self.expand(i_changed);
     }
@@ -192,7 +215,7 @@ pub struct IntoIter<T> {
     inner: std::vec::IntoIter<T>,
 }
 
-impl<T: Ord> Iterator for IntoIter<T> {
+impl<T> Iterator for IntoIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().or_else(|| {
@@ -222,24 +245,19 @@ impl<T: Ord> IntoIterator for SortedList<T> {
 
 impl<T: Ord> Default for SortedList<T> {
     fn default() -> Self {
-        SortedList::<T> {
-            lists: vec![Vec::new()],
-            load_factor: DEFAULT_LOAD_FACTOR,
-            len: 0,
-        }
+        Self::new()
     }
 }
 
-/// Does a probably O(n^2) collection from an iterator -- but it's an iterator, not a
-/// collection we're sorting, so what do you expect?
+/// Create a SortedList from an Iterator.
 ///
-/// Actually may not be that bad based on the performance analysis that's todo
+/// The runtime of this function should be approximately `O(n * log(n))`.
 impl<T: Ord> FromIterator<T> for SortedList<T> {
     fn from_iter<F>(iter: F) -> Self
     where
         F: IntoIterator<Item = T>,
     {
-        let mut list = Self::default();
+        let mut list = Self::new();
         let mut iter = iter.into_iter();
         while let Some(x) = iter.next() {
             list.add(x);

@@ -1,9 +1,29 @@
+//! Module for a sorted list using multiple lists of varying length.
+//!
+//! This package may be useful for those who are working with large lists, as it adds a little
+//! overhead to small lists but is significantly faster than a vector for large lists.
+//!
+//! # Example Usage
+//! ```
+//! use sorted_collections::UnsortedList;
+//! let mut list: UnsortedList<i64> = UnsortedList::new();
+//! assert_eq!(0, list.len());
+//!
+//! list.push(3);
+//! list.push(-22);
+//! list.push(11);
+//!
+//! assert_eq!(vec![3,-22,11], list.into_iter().collect::<Vec<i64>>());
+//! ```
+
+use super::sorted_utils::DEFAULT_LOAD_FACTOR;
 use std::default::Default;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
 
-const DEFAULT_LOAD_FACTOR: usize = 1000;
-
+/// An unsorted list.
+/// Usage is about the same as a vector.
+/// Performance should be better for large lists.
 #[derive(Debug)]
 pub struct UnsortedList<T> {
     lists: Vec<Vec<T>>, // There is always at least one element in the outer list.
@@ -12,6 +32,14 @@ pub struct UnsortedList<T> {
 }
 
 impl<T> UnsortedList<T> {
+    pub fn new() -> Self {
+        Self {
+            lists: vec![Vec::new()],
+            load_factor: DEFAULT_LOAD_FACTOR,
+            len: 0,
+        }
+    }
+
     pub fn insert(&mut self, mut i: usize, element: T) {
         let mut outer = 0;
         // biases towards the earlier list.
@@ -209,11 +237,7 @@ impl<T: Ord> IntoIterator for UnsortedList<T> {
 
 impl<T: Ord> Default for UnsortedList<T> {
     fn default() -> Self {
-        UnsortedList::<T> {
-            lists: vec![Vec::new()],
-            load_factor: DEFAULT_LOAD_FACTOR,
-            len: 0,
-        }
+        Self::new()
     }
 }
 

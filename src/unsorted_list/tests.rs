@@ -76,17 +76,16 @@ quickcheck! {
     }
 
     fn from_iter(list: Vec<u32>) -> bool {
-    let mut mut_list = list.clone(); // can't get mutable values from quickcheck.
-    let from_iter: UnsortedList<u32> = mut_list.iter().map(|x| x.clone()).collect();
+    let from_iter: UnsortedList<u32> = list.iter().map(|x| x.clone()).collect();
     let from_collection = {
         let mut collection = UnsortedList::default();
-        for x in mut_list.iter() {
+        for x in list.iter() {
             collection.push(x.clone());
         }
         collection
     };
 
-    from_iter.iter().eq(mut_list.iter()) && from_collection.iter().eq(mut_list.iter())
+    from_iter.iter().eq(list.iter()) && from_collection.iter().eq(list.iter())
         && list.iter().eq(from_collection.iter())
     }
 }

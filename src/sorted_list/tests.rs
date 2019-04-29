@@ -1,4 +1,3 @@
-use super::sorted_utils::insert_sorted;
 use super::SortedList;
 
 #[test]
@@ -6,15 +5,6 @@ fn it_builds() {
     let default = SortedList::<u8>::default();
     assert!(default.lists.len() == 1);
     assert!(default.lists[0].len() == 0);
-}
-
-#[test]
-fn test_insert() {
-    let mut vec = vec![];
-    insert_sorted(&mut vec, 22);
-    assert_eq!(vec![22], vec);
-    insert_sorted(&mut vec, -1000);
-    assert_eq!(vec![-1000, 22], vec);
 }
 
 #[test]

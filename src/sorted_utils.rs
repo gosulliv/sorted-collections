@@ -1,3 +1,5 @@
+//! Common code for sorted and unsorted variants of the list.
+
 use std::cmp::Ordering;
 
 /// if the list size grows greater than the load factor, we split it.
@@ -38,4 +40,18 @@ pub fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usiz
 
     insert_sorted(&mut list_list[list_i], val);
     list_i
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn test_insert() {
+        let mut vec = vec![];
+        insert_sorted(&mut vec, 22);
+        assert_eq!(vec![22], vec);
+        insert_sorted(&mut vec, -1000);
+        assert_eq!(vec![-1000, 22], vec);
+    }
 }

@@ -1,3 +1,5 @@
+//! Expandable, hopefully reasonably-cache friendly list types written entirely in safe Rust.
+
 #[cfg(test)]
 #[macro_use]
 extern crate quickcheck;
