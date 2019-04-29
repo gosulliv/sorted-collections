@@ -18,14 +18,14 @@ mod benchmarks {
     #[bench]
     fn add_random_u8(b: &mut Bencher) {
         let mut list = SortedList::default();
-        let mut rng = ::rand::IsaacRng::new_unseeded();
+        let mut rng = ::rand::thread_rng();
         b.iter(|| list.add(rng.gen::<u8>()));
     }
 
     #[bench]
     fn add_random_u64(b: &mut Bencher) {
         let mut list = SortedList::default();
-        let mut rng = ::rand::IsaacRng::new_unseeded();
+        let mut rng = ::rand::thread_rng();
         b.iter(|| list.add(rng.gen::<u64>()));
     }
 

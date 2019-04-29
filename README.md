@@ -25,6 +25,18 @@ source for [`BTreeMap`][btree-src] used `unsafe` 41 times. I wanted to see for
 myself how a data structure that didn't use `unsafe` would work, and to
 implement a sorted list with better-than-`Vec` insert time for large lists.
 
+## Benchmarks
+
+Benchmarks are pretty spare at this point, and require a nightly Cargo to run.
+Assuming you have a current nightly installed, you can run them with
+```bash
+rustup run nightly cargo bench
+```
+or
+```bash
+cargo +nightly bench
+```
+
 [py-git]: https://github.com/grantjenks/python-sortedcontainers
 [py-talk]: https://www.youtube.com/watch?v=7z2Ki44Vs4E
 [py-docs]: http://www.grantjenks.com/docs/sortedcontainers/
