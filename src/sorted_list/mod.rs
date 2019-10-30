@@ -1,6 +1,6 @@
 //! Module for a sorted list using multiple lists of varying length.
 //!
-//! Copied from Grant Jenks' sorted containers.
+//! Adapted from Grant Jenks' sorted containers.
 //!
 //! # Example usage
 //! ```
@@ -28,7 +28,7 @@ mod tests;
 
 use super::sorted_utils::{insert_list_of_lists, DEFAULT_LOAD_FACTOR};
 use std::default::Default;
-use std::iter::FromIterator;
+use std::iter::{FromIterator, FusedIterator};
 use std::ops::{Index, IndexMut};
 
 /// A sorted list with no `unsafe` code.
@@ -198,7 +198,7 @@ pub struct Iter<'a, T: 'a> {
     inner: std::slice::Iter<'a, T>,
 }
 
-impl<'a, T: Ord> Iterator for Iter<'a, T> {
+impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().or_else(|| {
@@ -209,6 +209,8 @@ impl<'a, T: Ord> Iterator for Iter<'a, T> {
         })
     }
 }
+
+impl<'a, T> FusedIterator for Iter<'a, T> {}
 
 pub struct IntoIter<T> {
     outer: std::vec::IntoIter<Vec<T>>,
@@ -242,6 +244,8 @@ impl<T: Ord> IntoIterator for SortedList<T> {
         }
     }
 }
+
+impl<'a, T> FusedIterator for IntoIter<T> {}
 
 impl<T: Ord> Default for SortedList<T> {
     fn default() -> Self {
