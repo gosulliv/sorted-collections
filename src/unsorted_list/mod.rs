@@ -17,6 +17,7 @@
 //! ```
 
 use super::sorted_utils::DEFAULT_LOAD_FACTOR;
+use super::{IntoIter, Iter};
 use std::default::Default;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
@@ -181,45 +182,6 @@ impl<T: PartialEq> UnsortedList<T> {
         debug_assert!(!self.lists.is_empty());
 
         self.lists.iter().any(|list| list.contains(val))
-    }
-}
-
-pub struct Iter<'a, T: 'a> {
-    outer: std::slice::Iter<'a, Vec<T>>,
-    inner: std::slice::Iter<'a, T>,
-}
-
-impl<'a, T: Ord> Iterator for Iter<'a, T> {
-    type Item = &'a T;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().or_else(|| {
-            self.outer.next().and_then(|x| {
-                self.inner = x.into_iter();
-                self.next()
-            })
-        })
-    }
-}
-
-pub struct IntoIter<T> {
-    outer: std::vec::IntoIter<Vec<T>>,
-    inner: std::vec::IntoIter<T>,
-}
-
-impl<T: Ord> Iterator for IntoIter<T> {
-    type Item = T;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().or_else(|| {
-            self.outer.next().and_then(|x| {
-                self.inner = x.into_iter();
-                self.next()
-            })
-        })
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let (min, _) = self.inner.size_hint();
-        (min, None)
     }
 }
 

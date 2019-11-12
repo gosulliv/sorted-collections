@@ -27,8 +27,9 @@
 mod tests;
 
 use super::sorted_utils::{insert_list_of_lists, DEFAULT_LOAD_FACTOR};
+use super::{IntoIter, Iter};
 use std::default::Default;
-use std::iter::{FromIterator, FusedIterator};
+use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
 
 /// A sorted list with no `unsafe` code.
@@ -39,7 +40,7 @@ use std::ops::{Index, IndexMut};
 /// global state, I/O, or unsafe code.
 #[derive(Debug)]
 pub struct SortedList<T: Ord> {
-    lists: Vec<Vec<T>>, // There is always at least one element in this list.
+    lists: Vec<Vec<T>>, // There is always at least one element in the outer list.
     load_factor: usize,
     len: usize,
 }
@@ -193,46 +194,6 @@ impl<T: Ord> IndexMut<usize> for SortedList<T> {
     }
 }
 
-pub struct Iter<'a, T: 'a> {
-    outer: std::slice::Iter<'a, Vec<T>>,
-    inner: std::slice::Iter<'a, T>,
-}
-
-impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = &'a T;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().or_else(|| {
-            self.outer.next().and_then(|x| {
-                self.inner = x.into_iter();
-                self.next()
-            })
-        })
-    }
-}
-
-impl<'a, T> FusedIterator for Iter<'a, T> {}
-
-pub struct IntoIter<T> {
-    outer: std::vec::IntoIter<Vec<T>>,
-    inner: std::vec::IntoIter<T>,
-}
-
-impl<T> Iterator for IntoIter<T> {
-    type Item = T;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().or_else(|| {
-            self.outer.next().and_then(|x| {
-                self.inner = x.into_iter();
-                self.next()
-            })
-        })
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let (min, _) = self.inner.size_hint();
-        (min, None)
-    }
-}
-
 impl<T: Ord> IntoIterator for SortedList<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
@@ -244,8 +205,6 @@ impl<T: Ord> IntoIterator for SortedList<T> {
         }
     }
 }
-
-impl<'a, T> FusedIterator for IntoIter<T> {}
 
 impl<T: Ord> Default for SortedList<T> {
     fn default() -> Self {
