@@ -16,11 +16,11 @@
 //! assert_eq!(vec![3,-22,11], list.into_iter().collect::<Vec<i64>>());
 //! ```
 
-use super::sorted_utils::DEFAULT_LOAD_FACTOR;
-use super::{IntoIter, Iter};
+use crate::sorted_utils::DEFAULT_LOAD_FACTOR;
 use std::default::Default;
-use std::iter::FromIterator;
+use std::iter::{FromIterator, FusedIterator};
 use std::ops::{Index, IndexMut};
+pub mod sorted_list;
 
 /// An unsorted list.
 /// Usage is about the same as a vector.
@@ -83,9 +83,9 @@ impl<T> UnsortedList<T> {
     }
 
     /// Contracts with the nearest list.
-    fn unchecked_contract(&mut self, i: usize) {
+    fn unchecked_contract(&mut self, list_index: usize) {
         debug_assert!(self.len() > 1);
-        let (low, high) = self.contract_i(i);
+        let (low, high) = self.contract_i(list_index);
         let mut removed_list = self.lists.remove(high);
         self.lists[low].append(&mut removed_list);
     }
@@ -160,6 +160,18 @@ impl<T> UnsortedList<T> {
 
     pub fn is_empty(&self) -> bool {
         self.len == 0
+    }
+
+    pub fn pop_last(&mut self) -> Option<T> {
+        match self.lists.last_mut().and_then(|l| l.pop()) {
+            Some(last) => {
+                self.len -= 1;
+                let len = self.len;
+                self.contract(len);
+                Some(last)
+            }
+            None => None,
+        }
     }
 
     pub fn iter(&self) -> Iter<T> {
@@ -238,6 +250,52 @@ impl<T: Ord> IndexMut<usize> for UnsortedList<T> {
         &mut self.lists[i][j]
     }
 }
+
+pub mod iter {
+    pub use super::{IntoIter, Iter};
+}
+
+/// An iterator for either a sorted or unsorted list.
+pub struct Iter<'a, T: 'a> {
+    outer: std::slice::Iter<'a, Vec<T>>,
+    inner: std::slice::Iter<'a, T>,
+}
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().or_else(|| {
+            self.outer.next().and_then(|x| {
+                self.inner = x.iter();
+                self.next()
+            })
+        })
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.inner.len() + self.outer.len(), None)
+    }
+}
+impl<'a, T> FusedIterator for Iter<'a, T> {}
+
+// The conversion of a list into an iterator.
+pub struct IntoIter<T> {
+    outer: std::vec::IntoIter<Vec<T>>,
+    inner: std::vec::IntoIter<T>,
+}
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().or_else(|| {
+            self.outer.next().and_then(|x| {
+                self.inner = x.into_iter();
+                self.next()
+            })
+        })
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.inner.len() + self.outer.len(), None)
+    }
+}
+impl<'a, T> FusedIterator for IntoIter<T> {}
 
 #[cfg(test)]
 mod tests;

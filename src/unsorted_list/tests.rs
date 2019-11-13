@@ -9,6 +9,7 @@ fn empty() {
     assert_eq!(list.last_mut(), None);
     assert_eq!(list.pop(), None);
     assert_eq!(list.pop_first(), None);
+    assert_eq!(list.lists, vec![vec![]]);
 }
 
 #[test]

@@ -13,7 +13,7 @@ pub fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
     }
 }
 
-/// Inserts a value into a list of lists, as in SortedList.
+/// Inserts a value into a sorted list of sorted lists, as in SortedList.
 ///
 /// Does not handle empty sublists except for a single empty list.
 /// returns the index of the list that was inserted into.

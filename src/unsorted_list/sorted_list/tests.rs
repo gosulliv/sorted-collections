@@ -1,13 +1,6 @@
 use super::SortedList;
 
 #[test]
-fn it_builds() {
-    let default = SortedList::<u8>::default();
-    assert!(default.lists.len() == 1);
-    assert!(default.lists[0].len() == 0);
-}
-
-#[test]
 fn basic_test() {
     let mut list: SortedList<i32> = SortedList::default();
     assert_eq!(0, list.len());
@@ -37,9 +30,6 @@ fn basic_test() {
     assert_eq!(3, list.pop_first().unwrap());
 
     assert!(!list.contains(&3));
-
-    assert_eq!(1, list.lists.len());
-    assert_eq!(0, list.lists[0].len());
 
     assert_eq!(0, list.len());
 
@@ -80,38 +70,10 @@ fn zeroes() {
 }
 
 #[test]
-fn ones() {
-    let mut list = SortedList::default();
-
-    for i in 0..15000 {
-        assert_eq!(i, list.len());
-        list.add(1);
-    }
-
-    for i in 0..15000 {
-        assert_eq!(1, list[i]);
-    }
-}
-
-#[test]
 #[should_panic]
 fn out_of_bounds_panics() {
     let list: SortedList<i32> = SortedList::default();
     list[0];
-}
-
-#[test]
-fn test_actual_contract() {
-    let mut list = SortedList::<i32> {
-        lists: vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5], vec![99, 100]],
-        load_factor: 2,
-        len: 10,
-    };
-    list.unchecked_contract(1);
-    assert_eq!(
-        list.lists,
-        vec![vec![-6, -5, -3], vec![1, 2, 3, 4, 5, 99, 100]]
-    );
 }
 
 fn prop_from_iter_sorted<T: Ord + Clone>(list: Vec<T>) -> bool {
