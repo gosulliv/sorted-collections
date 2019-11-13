@@ -125,7 +125,7 @@ impl<T> UnsortedList<T> {
     }
 
     pub fn pop_first(&mut self) -> Option<T> {
-        if self.len() == 0 {
+        if self.is_empty() {
             None
         } else {
             self.len -= 1;
@@ -153,9 +153,13 @@ impl<T> UnsortedList<T> {
             None
         }
     }
-    #[inline]
+
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     pub fn iter(&self) -> Iter<T> {
@@ -213,8 +217,7 @@ impl<'a, T: Ord> FromIterator<T> for UnsortedList<T> {
         F: IntoIterator<Item = T>,
     {
         let mut list = Self::default();
-        let mut iter = iter.into_iter();
-        while let Some(x) = iter.next() {
+        for x in iter {
             list.push(x);
         }
         list

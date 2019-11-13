@@ -24,7 +24,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().or_else(|| {
             self.outer.next().and_then(|x| {
-                self.inner = x.into_iter();
+                self.inner = x.iter();
                 self.next()
             })
         })

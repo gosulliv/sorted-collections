@@ -18,16 +18,17 @@ pub fn insert_sorted<T: Ord>(vec: &mut Vec<T>, val: T) {
 /// Does not handle empty sublists except for a single empty list.
 /// returns the index of the list that was inserted into.
 pub fn insert_list_of_lists<T: Ord>(list_list: &mut Vec<Vec<T>>, val: T) -> usize {
-    if list_list.len() == 1 && list_list[0].len() == 0 {
+    if list_list.len() == 1 && list_list[0].is_empty() {
         list_list[0].push(val);
         return 0;
     }
+
     let list_i = match list_list.binary_search_by(|list| {
         let first = list.first().unwrap();
         let last = list.last().unwrap();
-        if last < &val {
+        if val > *last {
             Ordering::Less
-        } else if first > &val {
+        } else if val < *first {
             Ordering::Greater
         } else {
             Ordering::Equal

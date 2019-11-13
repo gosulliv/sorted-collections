@@ -132,7 +132,7 @@ impl<T: Ord> SortedList<T> {
     }
 
     pub fn pop_first(&mut self) -> Option<T> {
-        if self.len() == 0 {
+        if self.is_empty() {
             None
         } else {
             self.len -= 1;
@@ -157,6 +157,10 @@ impl<T: Ord> SortedList<T> {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn iter(&self) -> Iter<T> {
         let mut outer = self.lists.iter();
         let inner = outer.next().unwrap().iter();
@@ -173,7 +177,7 @@ impl<T: Ord> Index<usize> for SortedList<T> {
             if list.len() > i {
                 return &list[i];
             } else {
-                i = i - list.len();
+                i -= list.len();
             }
         }
         panic!("element greater than list size");
@@ -187,7 +191,7 @@ impl<T: Ord> IndexMut<usize> for SortedList<T> {
             if list.len() > i {
                 return &mut list[i];
             } else {
-                i = i - list.len();
+                i -= list.len();
             }
         }
         panic!("element greater than list size");
@@ -221,8 +225,7 @@ impl<T: Ord> FromIterator<T> for SortedList<T> {
         F: IntoIterator<Item = T>,
     {
         let mut list = Self::new();
-        let mut iter = iter.into_iter();
-        while let Some(x) = iter.next() {
+        for x in iter {
             list.add(x);
         }
         list
